@@ -46,16 +46,16 @@ function KpiCard({
 }) {
   return (
     <button onClick={onClick} className="text-left w-full">
-      <div className="premium-card premium-card-hover p-5 h-full">
-        <div className="flex items-start justify-between mb-3">
-          <div className={cn('kpi-icon w-11 h-11', accent)} style={accentStyle}>
-            <Icon className="w-5 h-5" />
+      <div className="premium-card premium-card-hover p-3 sm:p-5 h-full">
+        <div className="flex items-start justify-between mb-2 sm:mb-3">
+          <div className={cn('kpi-icon w-9 h-9 sm:w-11 sm:h-11', accent)} style={accentStyle}>
+            <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           {trend !== undefined && <TrendBadge pct={trend} />}
         </div>
-        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{title}</p>
-        <p className="text-2xl font-bold text-slate-800 mt-1 tracking-tight">{value}</p>
-        {subtitle && <p className="text-[11px] text-slate-400 mt-1">{subtitle}</p>}
+        <p className="text-[10px] sm:text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{title}</p>
+        <p className="text-base sm:text-2xl font-bold text-slate-800 mt-0.5 sm:mt-1 tracking-tight">{value}</p>
+        {subtitle && <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5 sm:mt-1">{subtitle}</p>}
       </div>
     </button>
   )
@@ -101,28 +101,28 @@ export function DashboardModule() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Dashboard</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">Dashboard</h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             Welcome back. Here's your pharmacy overview for{' '}
             {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={() => setView('pos')} style={{ background: 'linear-gradient(135deg, #2F6BFF 0%, #1e4fd6 100%)' }} className="text-white border-0 hover:opacity-90 rounded-xl h-10 px-4 shadow-md shadow-blue-500/20">
-            <ShoppingCart className="w-4 h-4 mr-2" /> New Sale
+        <div className="flex items-center gap-2 shrink-0">
+          <Button onClick={() => setView('pos')} style={{ background: 'linear-gradient(135deg, #2F6BFF 0%, #1e4fd6 100%)' }} className="text-white border-0 hover:opacity-90 rounded-xl h-9 sm:h-10 px-3 sm:px-4 shadow-md shadow-blue-500/20 text-sm">
+            <ShoppingCart className="w-4 h-4 mr-1.5 sm:mr-2" /> New Sale
           </Button>
-          <Button onClick={() => setView('purchases')} variant="outline" className="rounded-xl h-10 px-4 bg-white">
-            <Truck className="w-4 h-4 mr-2" /> New Purchase
+          <Button onClick={() => setView('purchases')} variant="outline" className="rounded-xl h-9 sm:h-10 px-3 sm:px-4 bg-white text-sm">
+            <Truck className="w-4 h-4 mr-1.5 sm:mr-2" /> <span className="hidden sm:inline">New Purchase</span><span className="sm:hidden">Purchase</span>
           </Button>
         </div>
       </div>
 
       {/* Primary KPI cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {primaryCards.map((c, i) => <KpiCard key={i} {...c} />)}
       </div>
 

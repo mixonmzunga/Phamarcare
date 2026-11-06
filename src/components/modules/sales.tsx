@@ -67,7 +67,7 @@ export function SalesModule() {
       </Card>
       <Card className="border-slate-200 shadow-sm">
         {isLoading ? <div className="p-4"><LoadingState /></div> : sales.length === 0 ? <EmptyState title="No sales found" icon={Receipt} /> : (
-          <div className="overflow-x-auto scroll-thin">
+          <div className="overflow-x-auto scroll-thin"><div className="min-w-[640px]">
             <Table>
               <TableHeader><TableRow className="bg-slate-50">
                 <TableHead>Invoice</TableHead><TableHead>Customer</TableHead><TableHead>Cashier</TableHead>
@@ -97,6 +97,7 @@ export function SalesModule() {
                 ))}
               </TableBody>
             </Table>
+          </div>
           </div>
         )}
       </Card>

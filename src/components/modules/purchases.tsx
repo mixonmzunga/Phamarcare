@@ -57,7 +57,7 @@ export function PurchasesModule() {
       </Card>
       <Card className="border-slate-200 shadow-sm">
         {isLoading ? <div className="p-4"><LoadingState /></div> : purchases.length === 0 ? <EmptyState title="No purchases found" icon={Truck} action={<Button onClick={() => setDialogOpen(true)} className="bg-primary"><Plus className="w-4 h-4 mr-2" /> New Purchase</Button>} /> : (
-          <div className="overflow-x-auto scroll-thin">
+          <div className="overflow-x-auto scroll-thin"><div className="min-w-[640px]">
             <Table>
               <TableHeader><TableRow className="bg-slate-50"><TableHead>Invoice</TableHead><TableHead>Supplier</TableHead><TableHead className="text-center">Items</TableHead><TableHead className="text-right">Total</TableHead><TableHead className="text-right">Paid</TableHead><TableHead className="text-right">Due</TableHead><TableHead className="text-center">Method</TableHead><TableHead className="text-center">Status</TableHead><TableHead>Date</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
               <TableBody>
@@ -77,6 +77,7 @@ export function PurchasesModule() {
                 ))}
               </TableBody>
             </Table>
+          </div>
           </div>
         )}
       </Card>

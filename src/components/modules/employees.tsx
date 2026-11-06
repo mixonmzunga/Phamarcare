@@ -41,7 +41,7 @@ export function EmployeesModule() {
         <TabsContent value="employees" className="mt-4">
           <Card className="border-slate-200 shadow-sm">
             {isLoading ? <div className="p-4"><LoadingState /></div> : employees.length === 0 ? <EmptyState title="No employees" icon={UserCog} /> : (
-              <div className="overflow-x-auto scroll-thin"><Table>
+              <div className="overflow-x-auto scroll-thin"><div className="min-w-[640px]"><Table>
                 <TableHeader><TableRow className="bg-slate-50"><TableHead>Code</TableHead><TableHead>Name</TableHead><TableHead>Position</TableHead><TableHead>Department</TableHead><TableHead className="text-right">Salary</TableHead><TableHead className="text-center">Status</TableHead><TableHead>Joined</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {employees.map((e: any) => (
@@ -60,7 +60,7 @@ export function EmployeesModule() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table></div>
+              </Table></div></div>
             )}
           </Card>
         </TabsContent>

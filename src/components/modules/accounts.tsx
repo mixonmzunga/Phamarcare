@@ -45,32 +45,44 @@ export function AccountsModule() {
         <TabsContent value="trial" className="mt-4">
           <Card className="border-slate-200 shadow-sm">
             {isLoading ? <LoadingState /> : trial.length === 0 ? <EmptyState title="No transactions yet" /> : (
-              <Table><TableHeader><TableRow className="bg-slate-50"><TableHead>Code</TableHead><TableHead>Account</TableHead><TableHead className="text-center">Type</TableHead><TableHead className="text-right">Debit</TableHead><TableHead className="text-right">Credit</TableHead></TableRow></TableHeader>
-                <TableBody>{trial.map((a: any) => (
-                  <TableRow key={a.id}><TableCell className="font-mono text-xs">{a.code}</TableCell><TableCell className="font-medium">{a.name}</TableCell><TableCell className="text-center text-xs"><span className="text-slate-500">{a.type}</span></TableCell><TableCell className="text-right text-sm">{a.balance > 0 ? formatMoney(a.balance) : '-'}</TableCell><TableCell className="text-right text-sm">{a.balance < 0 ? formatMoney(-a.balance) : '-'}</TableCell></TableRow>
-                ))}
-                <TableRow className="bg-slate-50 font-bold border-t-2 border-slate-300"><TableCell colSpan={3}>Total</TableCell><TableCell className="text-right">{formatMoney(totalDebit)}</TableCell><TableCell className="text-right">{formatMoney(totalCredit)}</TableCell></TableRow>
-                </TableBody>
-              </Table>
+              <div className="overflow-x-auto scroll-thin">
+                <div className="min-w-[640px]">
+                  <Table><TableHeader><TableRow className="bg-slate-50"><TableHead>Code</TableHead><TableHead>Account</TableHead><TableHead className="text-center">Type</TableHead><TableHead className="text-right">Debit</TableHead><TableHead className="text-right">Credit</TableHead></TableRow></TableHeader>
+                    <TableBody>{trial.map((a: any) => (
+                      <TableRow key={a.id}><TableCell className="font-mono text-xs">{a.code}</TableCell><TableCell className="font-medium">{a.name}</TableCell><TableCell className="text-center text-xs"><span className="text-slate-500">{a.type}</span></TableCell><TableCell className="text-right text-sm">{a.balance > 0 ? formatMoney(a.balance) : '-'}</TableCell><TableCell className="text-right text-sm">{a.balance < 0 ? formatMoney(-a.balance) : '-'}</TableCell></TableRow>
+                    ))}
+                    <TableRow className="bg-slate-50 font-bold border-t-2 border-slate-300"><TableCell colSpan={3}>Total</TableCell><TableCell className="text-right">{formatMoney(totalDebit)}</TableCell><TableCell className="text-right">{formatMoney(totalCredit)}</TableCell></TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
             )}
           </Card>
         </TabsContent>
         <TabsContent value="vouchers" className="mt-4">
           <Card className="border-slate-200 shadow-sm">
             {vouchers.length === 0 ? <EmptyState title="No vouchers" description="Create a journal voucher to record transactions" icon={BookOpen} /> : (
-              <Table><TableHeader><TableRow className="bg-slate-50"><TableHead>Voucher #</TableHead><TableHead className="text-center">Type</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead><TableHead>Date</TableHead><TableHead className="text-center">Entries</TableHead></TableRow></TableHeader>
-                <TableBody>{vouchers.map((v: any) => (
-                  <TableRow key={v.id}><TableCell className="font-mono text-xs">{v.voucherNumber}</TableCell><TableCell className="text-center text-xs">{v.type}</TableCell><TableCell className="text-sm text-slate-600">{v.description || '-'}</TableCell><TableCell className="text-right font-medium">{formatMoney(v.amount)}</TableCell><TableCell className="text-sm text-slate-500">{formatDate(v.date)}</TableCell><TableCell className="text-center text-sm">{v.entries?.length || 0}</TableCell></TableRow>
-                ))}</TableBody>
-              </Table>
+              <div className="overflow-x-auto scroll-thin">
+                <div className="min-w-[640px]">
+                  <Table><TableHeader><TableRow className="bg-slate-50"><TableHead>Voucher #</TableHead><TableHead className="text-center">Type</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead><TableHead>Date</TableHead><TableHead className="text-center">Entries</TableHead></TableRow></TableHeader>
+                    <TableBody>{vouchers.map((v: any) => (
+                      <TableRow key={v.id}><TableCell className="font-mono text-xs">{v.voucherNumber}</TableCell><TableCell className="text-center text-xs">{v.type}</TableCell><TableCell className="text-sm text-slate-600">{v.description || '-'}</TableCell><TableCell className="text-right font-medium">{formatMoney(v.amount)}</TableCell><TableCell className="text-sm text-slate-500">{formatDate(v.date)}</TableCell><TableCell className="text-center text-sm">{v.entries?.length || 0}</TableCell></TableRow>
+                    ))}</TableBody>
+                  </Table>
+                </div>
+              </div>
             )}
           </Card>
         </TabsContent>
         <TabsContent value="accounts" className="mt-4">
           <Card className="border-slate-200 shadow-sm">
-            <Table><TableHeader><TableRow className="bg-slate-50"><TableHead>Code</TableHead><TableHead>Account Name</TableHead><TableHead className="text-center">Type</TableHead><TableHead className="text-center">Status</TableHead></TableRow></TableHeader>
-              <TableBody>{accounts.map((a: any) => (<TableRow key={a.id}><TableCell className="font-mono text-xs">{a.code}</TableCell><TableCell className="font-medium">{a.name}</TableCell><TableCell className="text-center text-xs">{a.type}</TableCell><TableCell className="text-center"><span className={`text-xs ${a.isActive ? 'text-emerald-600' : 'text-slate-400'}`}>{a.isActive ? 'Active' : 'Inactive'}</span></TableCell></TableRow>))}</TableBody>
-            </Table>
+            <div className="overflow-x-auto scroll-thin">
+              <div className="min-w-[640px]">
+                <Table><TableHeader><TableRow className="bg-slate-50"><TableHead>Code</TableHead><TableHead>Account Name</TableHead><TableHead className="text-center">Type</TableHead><TableHead className="text-center">Status</TableHead></TableRow></TableHeader>
+                  <TableBody>{accounts.map((a: any) => (<TableRow key={a.id}><TableCell className="font-mono text-xs">{a.code}</TableCell><TableCell className="font-medium">{a.name}</TableCell><TableCell className="text-center text-xs">{a.type}</TableCell><TableCell className="text-center"><span className={`text-xs ${a.isActive ? 'text-emerald-600' : 'text-slate-400'}`}>{a.isActive ? 'Active' : 'Inactive'}</span></TableCell></TableRow>))}</TableBody>
+                </Table>
+              </div>
+            </div>
           </Card>
         </TabsContent>
       </Tabs>
@@ -121,11 +133,15 @@ function NewVoucherButton({ accounts }: { accounts: any[] }) {
           <Field label="Date"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
           <div className="col-span-2"><Field label="Description"><Input value={description} onChange={(e) => setDescription(e.target.value)} /></Field></div>
         </div>
-        <Table><TableHeader><TableRow className="bg-slate-50"><TableHead>Account</TableHead><TableHead className="text-right">Debit</TableHead><TableHead className="text-right">Credit</TableHead><TableHead></TableHead></TableRow></TableHeader>
-          <TableBody>{entries.map((e, i) => (
-            <TableRow key={i}><TableCell><Select value={e.accountId} onValueChange={(v) => updateEntry(i, { accountId: v })}><SelectTrigger className="h-8"><SelectValue placeholder="Select account" /></SelectTrigger><SelectContent>{accounts.map((a) => <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>)}</SelectContent></Select></TableCell><TableCell><Input type="number" value={e.debit || ''} onChange={(ev) => updateEntry(i, { debit: Number(ev.target.value), credit: 0 })} className="h-8 w-24 text-right text-xs" /></TableCell><TableCell><Input type="number" value={e.credit || ''} onChange={(ev) => updateEntry(i, { credit: Number(ev.target.value), debit: 0 })} className="h-8 w-24 text-right text-xs" /></TableCell><TableCell>{entries.length > 2 && <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeEntry(i)}><Trash2 className="w-3.5 h-3.5" /></Button>}</TableCell></TableRow>
-          ))}</TableBody>
-        </Table>
+        <div className="overflow-x-auto scroll-thin">
+          <div className="min-w-[640px]">
+            <Table><TableHeader><TableRow className="bg-slate-50"><TableHead>Account</TableHead><TableHead className="text-right">Debit</TableHead><TableHead className="text-right">Credit</TableHead><TableHead></TableHead></TableRow></TableHeader>
+              <TableBody>{entries.map((e, i) => (
+                <TableRow key={i}><TableCell><Select value={e.accountId} onValueChange={(v) => updateEntry(i, { accountId: v })}><SelectTrigger className="h-8"><SelectValue placeholder="Select account" /></SelectTrigger><SelectContent>{accounts.map((a) => <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>)}</SelectContent></Select></TableCell><TableCell><Input type="number" value={e.debit || ''} onChange={(ev) => updateEntry(i, { debit: Number(ev.target.value), credit: 0 })} className="h-8 w-24 text-right text-xs" /></TableCell><TableCell><Input type="number" value={e.credit || ''} onChange={(ev) => updateEntry(i, { credit: Number(ev.target.value), debit: 0 })} className="h-8 w-24 text-right text-xs" /></TableCell><TableCell>{entries.length > 2 && <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeEntry(i)}><Trash2 className="w-3.5 h-3.5" /></Button>}</TableCell></TableRow>
+              ))}</TableBody>
+            </Table>
+          </div>
+        </div>
         <div className="flex justify-between items-center mt-2">
           <Button variant="outline" size="sm" onClick={addEntry}><Plus className="w-4 h-4 mr-1" /> Add Line</Button>
           <div className={`text-sm font-bold ${balanced ? 'text-emerald-600' : 'text-red-600'}`}>Debit: {formatMoney(totalDebit)} | Credit: {formatMoney(totalCredit)} {balanced ? '✓ Balanced' : '✗ Unbalanced'}</div>

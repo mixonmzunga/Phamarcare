@@ -82,7 +82,7 @@ export function InventoryModule() {
           </Card>
           <Card className="border-slate-200 shadow-sm">
             {isLoading ? <div className="p-4"><LoadingState /></div> : batches.length === 0 ? <EmptyState title="No batches found" /> : (
-              <div className="overflow-x-auto scroll-thin">
+              <div className="overflow-x-auto scroll-thin"><div className="min-w-[640px]">
                 <Table>
                   <TableHeader><TableRow className="bg-slate-50">
                     <TableHead>Medicine</TableHead><TableHead>Batch #</TableHead><TableHead>Supplier</TableHead>
@@ -109,6 +109,7 @@ export function InventoryModule() {
                   </TableBody>
                 </Table>
               </div>
+          </div>
             )}
           </Card>
         </TabsContent>

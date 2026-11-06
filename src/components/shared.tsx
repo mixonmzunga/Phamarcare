@@ -10,12 +10,23 @@ import { cn } from '@/lib/utils'
 
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: React.ReactNode }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">{title}</h1>
-        {subtitle && <p className="text-sm text-slate-500 mt-0.5">{subtitle}</p>}
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-5">
+      <div className="min-w-0">
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-800 truncate">{title}</h1>
+        {subtitle && <p className="text-xs sm:text-sm text-slate-500 mt-0.5 line-clamp-2">{subtitle}</p>}
       </div>
-      {actions && <div className="flex items-center gap-2 flex-wrap">{actions}</div>}
+      {actions && <div className="flex items-center gap-2 flex-wrap shrink-0">{actions}</div>}
+    </div>
+  )
+}
+
+// Responsive table wrapper - horizontal scroll on mobile, prevents layout breakage
+export function ResponsiveTable({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={cn('overflow-x-auto scroll-thin -mx-3 sm:mx-0 px-3 sm:px-0', className)}>
+      <div className="min-w-[640px] sm:min-w-0">
+        {children}
+      </div>
     </div>
   )
 }
@@ -39,15 +50,15 @@ export function StatCard({
   }
   return (
     <Card className="border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between">
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{title}</p>
-            <p className="text-2xl font-bold text-slate-800 mt-1 truncate">{value}</p>
-            {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
+      <CardContent className="p-3 sm:p-5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide">{title}</p>
+            <p className="text-lg sm:text-2xl font-bold text-slate-800 mt-1 truncate">{value}</p>
+            {sub && <p className="text-[10px] sm:text-xs text-slate-400 mt-1 truncate">{sub}</p>}
           </div>
-          <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center shrink-0', colorMap[color])}>
-            <Icon className="w-5 h-5" />
+          <div className={cn('w-9 h-9 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0', colorMap[color])}>
+            <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
         </div>
       </CardContent>

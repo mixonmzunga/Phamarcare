@@ -53,7 +53,7 @@ export function CustomersModule() {
       </Card>
       <Card className="border-slate-200 shadow-sm">
         {isLoading ? <div className="p-4"><LoadingState /></div> : customers.length === 0 ? <EmptyState title="No customers" icon={Users} /> : (
-          <div className="overflow-x-auto scroll-thin">
+          <div className="overflow-x-auto scroll-thin"><div className="min-w-[640px]">
             <Table>
               <TableHeader><TableRow className="bg-slate-50"><TableHead>Name</TableHead><TableHead>Phone</TableHead><TableHead>Email</TableHead><TableHead className="text-right">Credit Limit</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
               <TableBody>
@@ -75,6 +75,7 @@ export function CustomersModule() {
                 ))}
               </TableBody>
             </Table>
+          </div>
           </div>
         )}
       </Card>

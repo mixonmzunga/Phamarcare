@@ -57,9 +57,13 @@ function SalesReport({ from, to }: any) {
     <Card className="border-slate-200 shadow-sm">
       <div className="p-4 border-b border-slate-100 flex justify-between"><h3 className="font-semibold">Sales Report</h3><div className="text-sm"><span className="text-slate-500">Total: </span><span className="font-bold text-primary">{formatMoney(data?.total || 0)}</span> <span className="text-slate-500 ml-3">Profit: </span><span className="font-bold text-emerald-600">{formatMoney(data?.profit || 0)}</span></div></div>
       {items.length === 0 ? <EmptyState title="No sales in this period" /> : (
-        <Table><TableHeader><TableRow className="bg-slate-50"><TableHead>Invoice</TableHead><TableHead>Customer</TableHead><TableHead>Cashier</TableHead><TableHead className="text-right">Total</TableHead><TableHead className="text-right">Profit</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
-          <TableBody>{items.map((s: any) => (<TableRow key={s.id}><TableCell className="font-medium">{s.invoiceNumber}</TableCell><TableCell className="text-sm text-slate-600">{s.customerName}</TableCell><TableCell className="text-sm text-slate-600">{s.cashier?.name}</TableCell><TableCell className="text-right">{formatMoney(s.totalAmount)}</TableCell><TableCell className="text-right text-emerald-600">{formatMoney(s.profitAmount)}</TableCell><TableCell className="text-sm text-slate-500">{formatDate(s.createdAt)}</TableCell></TableRow>))}</TableBody>
-        </Table>
+        <div className="overflow-x-auto scroll-thin">
+          <div className="min-w-[640px]">
+            <Table><TableHeader><TableRow className="bg-slate-50"><TableHead>Invoice</TableHead><TableHead>Customer</TableHead><TableHead>Cashier</TableHead><TableHead className="text-right">Total</TableHead><TableHead className="text-right">Profit</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
+              <TableBody>{items.map((s: any) => (<TableRow key={s.id}><TableCell className="font-medium">{s.invoiceNumber}</TableCell><TableCell className="text-sm text-slate-600">{s.customerName}</TableCell><TableCell className="text-sm text-slate-600">{s.cashier?.name}</TableCell><TableCell className="text-right">{formatMoney(s.totalAmount)}</TableCell><TableCell className="text-right text-emerald-600">{formatMoney(s.profitAmount)}</TableCell><TableCell className="text-sm text-slate-500">{formatDate(s.createdAt)}</TableCell></TableRow>))}</TableBody>
+            </Table>
+          </div>
+        </div>
       )}
     </Card>
   )
@@ -73,9 +77,13 @@ function PurchaseReport({ from, to }: any) {
     <Card className="border-slate-200 shadow-sm">
       <div className="p-4 border-b border-slate-100 flex justify-between"><h3 className="font-semibold">Purchase Report</h3><div className="text-sm"><span className="text-slate-500">Total: </span><span className="font-bold text-primary">{formatMoney(data?.total || 0)}</span></div></div>
       {items.length === 0 ? <EmptyState title="No purchases in this period" /> : (
-        <Table><TableHeader><TableRow className="bg-slate-50"><TableHead>Invoice</TableHead><TableHead>Supplier</TableHead><TableHead className="text-center">Items</TableHead><TableHead className="text-right">Total</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
-          <TableBody>{items.map((p: any) => (<TableRow key={p.id}><TableCell className="font-medium">{p.invoiceNumber}</TableCell><TableCell className="text-sm text-slate-600">{p.supplierName}</TableCell><TableCell className="text-center text-sm">{p.items?.length}</TableCell><TableCell className="text-right">{formatMoney(p.totalAmount)}</TableCell><TableCell className="text-sm text-slate-500">{formatDate(p.purchaseDate)}</TableCell></TableRow>))}</TableBody>
-        </Table>
+        <div className="overflow-x-auto scroll-thin">
+          <div className="min-w-[640px]">
+            <Table><TableHeader><TableRow className="bg-slate-50"><TableHead>Invoice</TableHead><TableHead>Supplier</TableHead><TableHead className="text-center">Items</TableHead><TableHead className="text-right">Total</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
+              <TableBody>{items.map((p: any) => (<TableRow key={p.id}><TableCell className="font-medium">{p.invoiceNumber}</TableCell><TableCell className="text-sm text-slate-600">{p.supplierName}</TableCell><TableCell className="text-center text-sm">{p.items?.length}</TableCell><TableCell className="text-right">{formatMoney(p.totalAmount)}</TableCell><TableCell className="text-sm text-slate-500">{formatDate(p.purchaseDate)}</TableCell></TableRow>))}</TableBody>
+            </Table>
+          </div>
+        </div>
       )}
     </Card>
   )
@@ -90,9 +98,13 @@ function ProfitReport({ from, to }: any) {
     <Card className="border-slate-200 shadow-sm">
       <div className="p-4 border-b border-slate-100 flex justify-between items-center"><h3 className="font-semibold">Profit Report</h3><Select value={sub} onValueChange={setSub}><SelectTrigger className="w-44"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="medicine">By Medicine</SelectItem><SelectItem value="category">By Category</SelectItem></SelectContent></Select></div>
       {items.length === 0 ? <EmptyState title="No data in this period" /> : (
-        <Table><TableHeader><TableRow className="bg-slate-50"><TableHead>Name</TableHead><TableHead className="text-center">Qty Sold</TableHead><TableHead className="text-right">Revenue</TableHead><TableHead className="text-right">Profit</TableHead><TableHead className="text-right">Margin</TableHead></TableRow></TableHeader>
-          <TableBody>{items.map((it: any, i: number) => (<TableRow key={i}><TableCell className="font-medium">{it.name}</TableCell><TableCell className="text-center">{it.qty}</TableCell><TableCell className="text-right">{formatMoney(it.revenue)}</TableCell><TableCell className="text-right text-emerald-600">{formatMoney(it.profit)}</TableCell><TableCell className="text-right text-sm">{it.revenue > 0 ? `${((it.profit / it.revenue) * 100).toFixed(1)}%` : '-'}</TableCell></TableRow>))}</TableBody>
-        </Table>
+        <div className="overflow-x-auto scroll-thin">
+          <div className="min-w-[640px]">
+            <Table><TableHeader><TableRow className="bg-slate-50"><TableHead>Name</TableHead><TableHead className="text-center">Qty Sold</TableHead><TableHead className="text-right">Revenue</TableHead><TableHead className="text-right">Profit</TableHead><TableHead className="text-right">Margin</TableHead></TableRow></TableHeader>
+              <TableBody>{items.map((it: any, i: number) => (<TableRow key={i}><TableCell className="font-medium">{it.name}</TableCell><TableCell className="text-center">{it.qty}</TableCell><TableCell className="text-right">{formatMoney(it.revenue)}</TableCell><TableCell className="text-right text-emerald-600">{formatMoney(it.profit)}</TableCell><TableCell className="text-right text-sm">{it.revenue > 0 ? `${((it.profit / it.revenue) * 100).toFixed(1)}%` : '-'}</TableCell></TableRow>))}</TableBody>
+            </Table>
+          </div>
+        </div>
       )}
     </Card>
   )
@@ -106,9 +118,13 @@ function InventoryReport() {
     <Card className="border-slate-200 shadow-sm">
       <div className="p-4 border-b border-slate-100 flex justify-between"><h3 className="font-semibold">Inventory Valuation</h3><div className="text-sm"><span className="text-slate-500">Total Stock Value: </span><span className="font-bold text-primary">{formatMoney(data?.total || 0)}</span></div></div>
       {items.length === 0 ? <EmptyState title="No inventory" /> : (
-        <Table><TableHeader><TableRow className="bg-slate-50"><TableHead>Medicine</TableHead><TableHead>Batch</TableHead><TableHead className="text-center">Qty</TableHead><TableHead className="text-right">Cost</TableHead><TableHead className="text-right">Value</TableHead><TableHead>Expiry</TableHead></TableRow></TableHeader>
-          <TableBody>{items.map((it: any, i: number) => (<TableRow key={i}><TableCell className="font-medium">{it.name}</TableCell><TableCell className="font-mono text-xs">{it.batch}</TableCell><TableCell className="text-center">{it.qty}</TableCell><TableCell className="text-right">{formatMoney(it.cost)}</TableCell><TableCell className="text-right font-medium">{formatMoney(it.value)}</TableCell><TableCell className="text-sm text-slate-500">{formatDate(it.expiry)}</TableCell></TableRow>))}</TableBody>
-        </Table>
+        <div className="overflow-x-auto scroll-thin">
+          <div className="min-w-[640px]">
+            <Table><TableHeader><TableRow className="bg-slate-50"><TableHead>Medicine</TableHead><TableHead>Batch</TableHead><TableHead className="text-center">Qty</TableHead><TableHead className="text-right">Cost</TableHead><TableHead className="text-right">Value</TableHead><TableHead>Expiry</TableHead></TableRow></TableHeader>
+              <TableBody>{items.map((it: any, i: number) => (<TableRow key={i}><TableCell className="font-medium">{it.name}</TableCell><TableCell className="font-mono text-xs">{it.batch}</TableCell><TableCell className="text-center">{it.qty}</TableCell><TableCell className="text-right">{formatMoney(it.cost)}</TableCell><TableCell className="text-right font-medium">{formatMoney(it.value)}</TableCell><TableCell className="text-sm text-slate-500">{formatDate(it.expiry)}</TableCell></TableRow>))}</TableBody>
+            </Table>
+          </div>
+        </div>
       )}
     </Card>
   )

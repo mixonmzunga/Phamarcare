@@ -47,7 +47,7 @@ export function SuppliersModule() {
           <Card className="border-slate-200 shadow-sm p-4 mb-4"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" /><Input placeholder="Search suppliers..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div></Card>
           <Card className="border-slate-200 shadow-sm">
             {isLoading ? <div className="p-4"><LoadingState /></div> : suppliers.length === 0 ? <EmptyState title="No suppliers" icon={Truck} /> : (
-              <div className="overflow-x-auto scroll-thin"><Table>
+              <div className="overflow-x-auto scroll-thin"><div className="min-w-[640px]"><Table>
                 <TableHeader><TableRow className="bg-slate-50"><TableHead>Name</TableHead><TableHead>Contact</TableHead><TableHead>Phone</TableHead><TableHead className="text-right">Credit Limit</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {suppliers.map((s: any) => (
@@ -65,7 +65,7 @@ export function SuppliersModule() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table></div>
+              </Table></div></div>
             )}
           </Card>
         </TabsContent>

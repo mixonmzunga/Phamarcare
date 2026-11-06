@@ -42,7 +42,7 @@ export function ExpensesModule() {
       </div>
       <Card className="border-slate-200 shadow-sm">
         {isLoading ? <div className="p-4"><LoadingState /></div> : expenses.length === 0 ? <EmptyState title="No expenses" icon={Wallet} action={<Button onClick={() => setDialogOpen(true)} className="bg-primary"><Plus className="w-4 h-4 mr-2" /> Add Expense</Button>} /> : (
-          <div className="overflow-x-auto scroll-thin"><Table>
+          <div className="overflow-x-auto scroll-thin"><div className="min-w-[640px]"><Table>
             <TableHeader><TableRow className="bg-slate-50"><TableHead>Date</TableHead><TableHead>Category</TableHead><TableHead>Description</TableHead><TableHead className="text-center">Method</TableHead><TableHead className="text-right">Amount</TableHead><TableHead>Recorded By</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
             <TableBody>
               {expenses.map((e: any) => (
@@ -57,7 +57,7 @@ export function ExpensesModule() {
                 </TableRow>
               ))}
             </TableBody>
-          </Table></div>
+          </Table></div></div>
         )}
       </Card>
       {dialogOpen && <ExpenseDialog open={dialogOpen} onOpenChange={setDialogOpen} categories={catData?.items} />}

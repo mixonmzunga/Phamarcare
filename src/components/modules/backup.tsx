@@ -43,7 +43,7 @@ export function BackupModule() {
       </Card>
       <Card className="border-slate-200 shadow-sm">
         {isLoading ? <div className="p-4"><LoadingState /></div> : backups.length === 0 ? <EmptyState title="No backups yet" description="Create your first backup to secure your data" icon={Database} action={<Button onClick={() => createMut.mutate()} className="bg-primary"><Download className="w-4 h-4 mr-2" /> Create Backup</Button>} /> : (
-          <div className="overflow-x-auto scroll-thin">
+          <div className="overflow-x-auto scroll-thin"><div className="min-w-[640px]">
             <table className="w-full">
               <thead><tr className="bg-slate-50 border-b border-slate-200"><th className="text-left p-3 text-sm font-medium text-slate-600">Filename</th><th className="text-center p-3 text-sm font-medium text-slate-600">Type</th><th className="text-center p-3 text-sm font-medium text-slate-600">Status</th><th className="text-right p-3 text-sm font-medium text-slate-600">Size</th><th className="text-left p-3 text-sm font-medium text-slate-600">Date</th></tr></thead>
               <tbody>
@@ -58,6 +58,7 @@ export function BackupModule() {
                 ))}
               </tbody>
             </table>
+          </div>
           </div>
         )}
       </Card>

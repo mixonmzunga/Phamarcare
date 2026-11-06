@@ -30,14 +30,14 @@ export function ReturnsModule() {
         <TabsContent value="sale" className="mt-4">
           <Card className="border-slate-200 shadow-sm">
             {returns.length === 0 ? <EmptyState title="No sales returns" description="Process a return when a customer brings back medicine" icon={Undo2} /> : (
-              <div className="overflow-x-auto scroll-thin"><Table>
+              <div className="overflow-x-auto scroll-thin"><div className="min-w-[640px]"><Table>
                 <TableHeader><TableRow className="bg-slate-50"><TableHead>Return #</TableHead><TableHead>Invoice</TableHead><TableHead>Customer</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="text-center">Restock</TableHead><TableHead>Reason</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {returns.map((r: any) => (
                     <TableRow key={r.id}><TableCell className="font-mono text-xs">{r.returnNumber}</TableCell><TableCell className="text-sm">{r.sale?.invoiceNumber}</TableCell><TableCell className="text-sm text-slate-600">{r.customerName}</TableCell><TableCell className="text-right font-medium">{formatMoney(r.totalAmount)}</TableCell><TableCell className="text-center"><Badge variant={r.restock ? 'default' : 'secondary'}>{r.restock ? 'Yes' : 'No'}</Badge></TableCell><TableCell className="text-sm text-slate-600 max-w-xs truncate">{r.reason}</TableCell><TableCell className="text-sm text-slate-500">{formatDateTime(r.createdAt)}</TableCell></TableRow>
                   ))}
                 </TableBody>
-              </Table></div>
+              </Table></div></div>
             )}
           </Card>
         </TabsContent>

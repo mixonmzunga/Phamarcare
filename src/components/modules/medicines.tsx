@@ -106,7 +106,7 @@ export function MedicinesModule() {
             {isLoading ? <div className="p-4"><LoadingState /></div> : medicines.length === 0 ? (
               <EmptyState title="No medicines found" description="Add your first medicine to get started" action={<Button onClick={() => { setEditing(null); setDialogOpen(true) }} className="bg-primary"><Plus className="w-4 h-4 mr-2" /> Add Medicine</Button>} />
             ) : (
-              <div className="overflow-x-auto scroll-thin">
+              <div className="overflow-x-auto scroll-thin"><div className="min-w-[640px]">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-slate-50">
@@ -151,6 +151,7 @@ export function MedicinesModule() {
                   </TableBody>
                 </Table>
               </div>
+          </div>
             )}
           </Card>
         </TabsContent>

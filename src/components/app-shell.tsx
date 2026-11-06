@@ -50,15 +50,15 @@ export function AppShell() {
   return (
     <div className="flex h-screen w-full overflow-hidden bg-slate-50">
       <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <Topbar />
         <main className="flex-1 overflow-y-auto scroll-thin">
           <div className="min-h-full flex flex-col">
-            <div className="flex-1 p-4 md:p-6">
+            <div className="flex-1 p-3 sm:p-4 md:p-6">
               {Module()}
             </div>
-            <footer className="border-t border-slate-200 bg-white px-6 py-3 text-center text-xs text-slate-500 no-print">
-              &copy; {new Date().getFullYear()} PharmaCare Pharmacy Management ERP &middot; All rights reserved &middot; Built with Next.js &amp; Prisma
+            <footer className="border-t border-slate-200 bg-white px-4 sm:px-6 py-3 text-center text-[11px] sm:text-xs text-slate-500 no-print">
+              &copy; {new Date().getFullYear()} PharmaCare Pharmacy Management ERP &middot; All rights reserved
             </footer>
           </div>
         </main>
