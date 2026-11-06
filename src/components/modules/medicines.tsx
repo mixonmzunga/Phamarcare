@@ -12,12 +12,13 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { toast } from 'sonner'
 import { useNav } from '@/lib/store'
 import { formatMoney } from '@/lib/format'
-import { Plus, Search, Edit, Trash2, Eye, Pill, Barcode as BarcodeIcon, Tag, Layers } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Eye, Pill, Barcode as BarcodeIcon, Tag, Layers, MoreVertical } from 'lucide-react'
 
 interface Medicine { id: string; name: string; genericName?: string|null; barcode?: string|null; productCode?: string|null; categoryId?: string|null; typeId?: string|null; manufacturerId?: string|null; unitId?: string|null; purchasePrice: number; sellingPrice: number; discountPercent: number; vatPercent: number; minStockLevel: number; boxQuantity: number; stripsPerBox: number; tabletsPerStrip: number; description?: string|null; prescription: boolean; isActive: boolean; category?: any; type?: any; manufacturer?: any; unit?: any; totalStock?: number }
 
@@ -140,11 +141,17 @@ export function MedicinesModule() {
                         </TableCell>
                         <TableCell className="text-center"><BadgeStatus status={m.isActive ? 'ACTIVE' : 'INACTIVE'} /></TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => setViewing(m)}><Eye className="w-4 h-4" /></Button>
-                            <Button variant="ghost" size="icon" onClick={() => { setEditing(m); setDialogOpen(true) }}><Edit className="w-4 h-4" /></Button>
-                            <Button variant="ghost" size="icon" onClick={() => setDeleteId(m.id)} className="text-destructive"><Trash2 className="w-4 h-4" /></Button>
-                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="w-4 h-4" /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40">
+                              <DropdownMenuItem onClick={() => setViewing(m)}><Eye className="w-4 h-4 mr-2" /> View</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => { setEditing(m); setDialogOpen(true) }}><Edit className="w-4 h-4 mr-2" /> Edit</DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => setDeleteId(m.id)} className="text-destructive focus:text-destructive"><Trash2 className="w-4 h-4 mr-2" /> Delete</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))}
