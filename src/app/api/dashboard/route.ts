@@ -117,6 +117,44 @@ export async function GET() {
     const monthExpenses = await db.expense.aggregate({ _sum: { amount: true }, where: { date: { gte: monthStart } } })
     const netProfit = (monthSales._sum.profitAmount || 0) - (monthExpenses._sum.amount || 0)
 
+    // Yesterday comparison for trend percentages
+    const yesterdayStart = startOfDay(new Date(now.getTime() - 24 * 60 * 60 * 1000))
+    const yesterdayEnd = endOfDay(new Date(now.getTime() - 24 * 60 * 60 * 1000))
+    const [ySales, yPurchases, yExpenses] = await Promise.all([
+      db.sale.aggregate({ _sum: { totalAmount: true, profitAmount: true }, where: { createdAt: { gte: yesterdayStart, lte: yesterdayEnd }, status: { in: ['COMPLETED', 'PARTIAL_RETURN'] } } }),
+      db.purchase.aggregate({ _sum: { totalAmount: true }, where: { purchaseDate: { gte: yesterdayStart, lte: yesterdayEnd }, status: 'COMPLETED' } }),
+      db.expense.aggregate({ _sum: { amount: true }, where: { date: { gte: yesterdayStart, lte: yesterdayEnd } } }),
+    ])
+    const ySalesTotal = ySales._sum.totalAmount || 0
+    const yProfit = ySales._sum.profitAmount || 0
+    const yPurchasesTotal = yPurchases._sum.totalAmount || 0
+    const yExpensesTotal = yExpenses._sum.amount || 0
+
+    function trendPct(today: number, yesterday: number): number {
+      if (yesterday === 0) return today > 0 ? 100 : 0
+      return ((today - yesterday) / yesterday) * 100
+    }
+
+    // Sales by category (donut)
+    const categoryMap = new Map<string, { name: string; value: number; color: string }>()
+    const palette = ['#2F6BFF', '#14B8A6', '#F59E0B', '#8B5CF6', '#EF4444', '#06B6D4', '#EC4899', '#84CC16']
+    for (const it of saleItems) {
+      const cat = it.medicine?.category?.name || 'Other'
+      const cur = categoryMap.get(cat) || { name: cat, value: 0, color: palette[categoryMap.size % palette.length] }
+      cur.value += it.total
+      categoryMap.set(cat, cur)
+    }
+    const salesByCategoryRaw = Array.from(categoryMap.values()).sort((a, b) => b.value - a.value).slice(0, 6)
+    const salesByCategoryTotal = salesByCategoryRaw.reduce((s, x) => s + x.value, 0) || 1
+    const salesByCategory = salesByCategoryRaw.map((c) => ({ ...c, pct: +(c.value / salesByCategoryTotal * 100).toFixed(1) }))
+
+    // Expiry breakdown list
+    const expiryBreakdown: { label: string; pct: number; color: string }[] = []
+    const totalBatches = allBatches.length || 1
+    expiryBreakdown.push({ label: 'Expired', pct: +(expired / totalBatches * 100).toFixed(1), color: '#EF4444' })
+    expiryBreakdown.push({ label: 'Expiring Soon', pct: +(expiringSoon / totalBatches * 100).toFixed(1), color: '#F59E0B' })
+    expiryBreakdown.push({ label: 'Safe Stock', pct: +((totalBatches - expired - expiringSoon) / totalBatches * 100).toFixed(1), color: '#10B981' })
+
     return NextResponse.json({
       stats: {
         totalSalesToday,
@@ -133,6 +171,11 @@ export async function GET() {
         supplierDebt,
         totalExpensesToday,
         netProfit,
+        // Trends (today vs yesterday)
+        salesTrend: trendPct(totalSalesToday, ySalesTotal),
+        purchasesTrend: trendPct(totalPurchasesToday, yPurchasesTotal),
+        profitTrend: trendPct(profitToday, yProfit),
+        expensesTrend: trendPct(totalExpensesToday, yExpensesTotal),
       },
       weeklyChart: days,
       monthlyChart: months,
@@ -140,6 +183,8 @@ export async function GET() {
       topProfit,
       recentSales,
       recentPurchases,
+      salesByCategory,
+      expiryBreakdown,
       lowStock: lowStock.slice(0, 5).map((m) => ({
         id: m.id,
         name: m.name,
