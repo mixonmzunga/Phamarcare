@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PageHeader, LoadingState, EmptyState, ConfirmDialog, BadgeStatus } from '@/components/shared'
 import { Card } from '@/components/ui/card'
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -18,9 +19,149 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from 'sonner'
 import { useNav } from '@/lib/store'
 import { formatMoney } from '@/lib/format'
-import { Plus, Search, Edit, Trash2, Eye, Pill, Barcode as BarcodeIcon, Tag, Layers, MoreVertical } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Eye, Pill, Barcode as BarcodeIcon, Tag, Layers, MoreVertical, Printer, FileText, FileSpreadsheet, FileDown, X, Upload, ImageIcon } from 'lucide-react'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
-interface Medicine { id: string; name: string; genericName?: string|null; barcode?: string|null; productCode?: string|null; categoryId?: string|null; typeId?: string|null; manufacturerId?: string|null; unitId?: string|null; purchasePrice: number; sellingPrice: number; discountPercent: number; vatPercent: number; minStockLevel: number; boxQuantity: number; stripsPerBox: number; tabletsPerStrip: number; description?: string|null; prescription: boolean; isActive: boolean; category?: any; type?: any; manufacturer?: any; unit?: any; totalStock?: number }
+interface Medicine { id: string; name: string; genericName?: string|null; barcode?: string|null; productCode?: string|null; categoryId?: string|null; typeId?: string|null; manufacturerId?: string|null; unitId?: string|null; image?: string|null; purchasePrice: number; sellingPrice: number; discountPercent: number; vatPercent: number; minStockLevel: number; boxQuantity: number; stripsPerBox: number; tabletsPerStrip: number; description?: string|null; prescription: boolean; isActive: boolean; category?: any; type?: any; manufacturer?: any; unit?: any; totalStock?: number }
+
+// Placeholder avatar colors
+const AVATAR_COLORS = ['#2F6BFF', '#14B8A6', '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4', '#EC4899', '#84CC16']
+function colorForName(name: string) {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+}
+
+function MedicineImage({ medicine, size = 40 }: { medicine: Medicine; size?: number }) {
+  const [imgError, setImgError] = useState(false)
+  if (medicine.image && !imgError) {
+    return (
+      <img
+        src={medicine.image}
+        alt={medicine.name}
+        onError={() => setImgError(true)}
+        className="rounded-lg object-cover shrink-0 border border-slate-200"
+        style={{ width: size, height: size }}
+      />
+    )
+  }
+  return (
+    <div
+      className="rounded-lg flex items-center justify-center text-white font-bold shrink-0"
+      style={{ width: size, height: size, background: colorForName(medicine.name), fontSize: size * 0.4 }}
+    >
+      {medicine.name[0]?.toUpperCase() || <Pill className="w-4 h-4" />}
+    </div>
+  )
+}
+
+// ----------------- Export Utilities -----------------
+
+function downloadBlob(content: string, filename: string, mime: string) {
+  const blob = new Blob([content], { type: mime })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+function buildExportRows(medicines: Medicine[]) {
+  return medicines.map((m, i) => ({
+    No: i + 1,
+    Name: m.name,
+    Generic: m.genericName || '',
+    Category: m.category?.name || '',
+    Type: m.type?.name || '',
+    Manufacturer: m.manufacturer?.name || '',
+    Barcode: m.barcode || '',
+    'Product Code': m.productCode || '',
+    'Purchase Price': m.purchasePrice,
+    'Selling Price': m.sellingPrice,
+    Stock: m.totalStock ?? 0,
+    'Min Stock': m.minStockLevel,
+    Status: m.isActive ? 'Active' : 'Inactive',
+    Prescription: m.prescription ? 'Yes' : 'No',
+  }))
+}
+
+function exportCSV(medicines: Medicine[]) {
+  if (medicines.length === 0) { toast.error('No medicines to export'); return }
+  const rows = buildExportRows(medicines)
+  const headers = Object.keys(rows[0])
+  const csv = [
+    headers.join(','),
+    ...rows.map((r) => headers.map((h) => {
+      const v = String((r as any)[h])
+      return v.includes(',') || v.includes('"') ? `"${v.replace(/"/g, '""')}"` : v
+    }).join(',')),
+  ].join('\n')
+  downloadBlob('\uFEFF' + csv, `medicines-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv;charset=utf-8')
+  toast.success(`Exported ${medicines.length} medicine(s) to CSV`)
+}
+
+function exportExcel(medicines: Medicine[]) {
+  if (medicines.length === 0) { toast.error('No medicines to export'); return }
+  const rows = buildExportRows(medicines)
+  const headers = Object.keys(rows[0])
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body><table border="1"><thead><tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${headers.map((h) => `<td>${(r as any)[h]}</td>`).join('')}</tr>`).join('')}</tbody></table></body></html>`
+  downloadBlob(html, `medicines-${new Date().toISOString().slice(0, 10)}.xls`, 'application/vnd.ms-excel')
+  toast.success(`Exported ${medicines.length} medicine(s) to Excel`)
+}
+
+function exportPDF(medicines: Medicine[]) {
+  if (medicines.length === 0) { toast.error('No medicines to export'); return }
+  const rows = buildExportRows(medicines)
+  const headers = Object.keys(rows[0])
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+  doc.setFontSize(16)
+  doc.text('PharmaCare - Medicine List', 14, 15)
+  doc.setFontSize(9)
+  doc.text(`Generated: ${new Date().toLocaleString('en-GB')} | ${medicines.length} medicine(s)`, 14, 21)
+  autoTable(doc, {
+    head: [headers],
+    body: rows.map((r) => headers.map((h) => String((r as any)[h]))),
+    startY: 26,
+    styles: { fontSize: 7, cellPadding: 1.5 },
+    headStyles: { fillColor: [47, 107, 255], textColor: 255, fontSize: 7 },
+    alternateRowStyles: { fillColor: [245, 247, 250] },
+    margin: { left: 14, right: 14 },
+  })
+  doc.save(`medicines-${new Date().toISOString().slice(0, 10)}.pdf`)
+  toast.success(`Exported ${medicines.length} medicine(s) to PDF`)
+}
+
+function printMedicines(medicines: Medicine[]) {
+  if (medicines.length === 0) { toast.error('No medicines to print'); return }
+  const rows = buildExportRows(medicines)
+  const headers = Object.keys(rows[0])
+  const html = `<!DOCTYPE html><html><head><title>Medicine List - PharmaCare</title><style>
+    *{font-family:Arial,sans-serif}body{padding:24px;color:#1e293b}
+    h1{color:#2F6BFF;font-size:20px;margin:0 0 4px}
+    .meta{font-size:11px;color:#64748b;margin-bottom:16px}
+    table{width:100%;border-collapse:collapse;font-size:11px}
+    th{background:#2F6BFF;color:#fff;padding:6px 8px;text-align:left}
+    td{padding:5px 8px;border-bottom:1px solid #e2e8f0}
+    tr:nth-child(even){background:#f8fafc}
+    .footer{margin-top:20px;font-size:10px;color:#94a3b8;text-align:center}
+  </style></head><body>
+    <h1>PharmaCare - Medicine List</h1>
+    <div class="meta">Generated: ${new Date().toLocaleString('en-GB')} | ${medicines.length} medicine(s)</div>
+    <table><thead><tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map((r) => `<tr>${headers.map((h) => `<td>${(r as any)[h]}</td>`).join('')}</tr>`).join('')}</tbody></table>
+    <div class="footer">PharmaCare Pharmacy Management ERP</div>
+  </body></html>`
+  const w = window.open('', '_blank')
+  if (!w) { toast.error('Pop-up blocked. Allow pop-ups to print.'); return }
+  w.document.write(html)
+  w.document.close()
+  w.focus()
+  setTimeout(() => w.print(), 300)
+}
+
+// ----------------- Main Module -----------------
 
 export function MedicinesModule() {
   const { params, setView } = useNav()
@@ -34,6 +175,7 @@ export function MedicinesModule() {
   const [viewing, setViewing] = useState<Medicine | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('medicines')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   const { data, isLoading } = useQuery({
     queryKey: ['medicines', search, categoryId, typeId, showInactive],
@@ -65,12 +207,53 @@ export function MedicinesModule() {
     onError: (e: any) => toast.error(e.message),
   })
 
+  // Selection helpers
+  const allSelected = medicines.length > 0 && medicines.every((m: Medicine) => selectedIds.has(m.id))
+  const someSelected = medicines.some((m: Medicine) => selectedIds.has(m.id))
+  function toggleAll() {
+    if (allSelected) setSelectedIds(new Set())
+    else setSelectedIds(new Set(medicines.map((m: Medicine) => m.id)))
+  }
+  function toggleOne(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+  function clearSelection() { setSelectedIds(new Set()) }
+  const selectedMedicines = medicines.filter((m: Medicine) => selectedIds.has(m.id))
+
+  function handleExport(type: 'csv' | 'excel' | 'pdf' | 'print') {
+    const list = selectedIds.size > 0 ? selectedMedicines : medicines
+    if (type === 'csv') exportCSV(list)
+    else if (type === 'excel') exportExcel(list)
+    else if (type === 'pdf') exportPDF(list)
+    else printMedicines(list)
+  }
+
   return (
     <div>
       <PageHeader
         title="Medicine Management"
         subtitle={`${medicines.length} medicine(s) in catalog`}
-        actions={<Button onClick={() => { setEditing(null); setDialogOpen(true) }} className="bg-primary"><Plus className="w-4 h-4 mr-2" /> Add Medicine</Button>}
+        actions={
+          <>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="bg-white"><FileDown className="w-4 h-4 mr-2" /> Export <span className="text-xs text-slate-400 ml-1 hidden sm:inline">({selectedIds.size || medicines.length})</span></Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => handleExport('print')}><Printer className="w-4 h-4 mr-2" /> Print</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('pdf')}><FileText className="w-4 h-4 mr-2" /> Export to PDF</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('excel')}><FileSpreadsheet className="w-4 h-4 mr-2" /> Export to Excel</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('csv')}><FileDown className="w-4 h-4 mr-2" /> Export to CSV</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button onClick={() => { setEditing(null); setDialogOpen(true) }} className="bg-primary"><Plus className="w-4 h-4 mr-2" /> <span className="hidden sm:inline">Add Medicine</span><span className="sm:hidden">Add</span></Button>
+          </>
+        }
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -103,14 +286,37 @@ export function MedicinesModule() {
             </div>
           </Card>
 
+          {/* Bulk action toolbar */}
+          {selectedIds.size > 0 && (
+            <div className="flex items-center justify-between gap-3 p-3 mb-4 rounded-xl border border-primary/20 bg-primary/5">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="flex items-center gap-2 text-sm font-medium text-primary shrink-0">
+                  <Checkbox checked={true} onCheckedChange={clearSelection} />
+                  {selectedIds.size} selected
+                </span>
+                <button onClick={clearSelection} className="text-xs text-slate-500 hover:text-slate-700 shrink-0">Clear</button>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button size="sm" variant="outline" onClick={() => handleExport('print')} className="bg-white"><Printer className="w-4 h-4 mr-1.5" /> <span className="hidden sm:inline">Print</span></Button>
+                <Button size="sm" variant="outline" onClick={() => handleExport('pdf')} className="bg-white"><FileText className="w-4 h-4 mr-1.5" /> <span className="hidden sm:inline">PDF</span></Button>
+                <Button size="sm" variant="outline" onClick={() => handleExport('excel')} className="bg-white"><FileSpreadsheet className="w-4 h-4 mr-1.5" /> <span className="hidden sm:inline">Excel</span></Button>
+                <Button size="sm" variant="outline" onClick={() => handleExport('csv')} className="bg-white"><FileDown className="w-4 h-4 mr-1.5" /> <span className="hidden sm:inline">CSV</span></Button>
+              </div>
+            </div>
+          )}
+
           <Card className="border-slate-200 shadow-sm">
             {isLoading ? <div className="p-4"><LoadingState /></div> : medicines.length === 0 ? (
               <EmptyState title="No medicines found" description="Add your first medicine to get started" action={<Button onClick={() => { setEditing(null); setDialogOpen(true) }} className="bg-primary"><Plus className="w-4 h-4 mr-2" /> Add Medicine</Button>} />
             ) : (
-              <div className="overflow-x-auto scroll-thin"><div className="min-w-[640px]">
+              <div className="overflow-x-auto scroll-thin"><div className="min-w-[760px]">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-slate-50">
+                      <TableHead className="w-10">
+                        <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="Select all" />
+                      </TableHead>
+                      <TableHead className="w-12">Image</TableHead>
                       <TableHead>Medicine</TableHead>
                       <TableHead>Category</TableHead>
                       <TableHead>Manufacturer</TableHead>
@@ -123,10 +329,16 @@ export function MedicinesModule() {
                   </TableHeader>
                   <TableBody>
                     {medicines.map((m: Medicine) => (
-                      <TableRow key={m.id} className="hover:bg-slate-50">
+                      <TableRow key={m.id} className={`hover:bg-slate-50 ${selectedIds.has(m.id) ? 'bg-primary/5' : ''}`}>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Checkbox checked={selectedIds.has(m.id)} onCheckedChange={() => toggleOne(m.id)} aria-label={`Select ${m.name}`} />
+                        </TableCell>
+                        <TableCell>
+                          <MedicineImage medicine={m} size={40} />
+                        </TableCell>
                         <TableCell>
                           <div className="font-medium text-slate-800">{m.name}</div>
-                          <div className="text-xs text-slate-400 flex items-center gap-2">
+                          <div className="text-xs text-slate-400 flex items-center gap-2 flex-wrap">
                             {m.genericName && <span>{m.genericName}</span>}
                             {m.barcode && <span className="flex items-center gap-0.5"><BarcodeIcon className="w-3 h-3" />{m.barcode}</span>}
                             {m.prescription && <Badge variant="secondary" className="text-[10px] h-4">Rx</Badge>}
@@ -178,8 +390,23 @@ export function MedicinesModule() {
 
 function MedicineDialog({ open, onOpenChange, editing, cats, types, manuf, units }: any) {
   const qc = useQueryClient()
-  const [form, setForm] = useState<any>(editing || { name: '', genericName: '', categoryId: '', typeId: '', manufacturerId: '', unitId: '', barcode: '', productCode: '', purchasePrice: 0, sellingPrice: 0, discountPercent: 0, vatPercent: 0, minStockLevel: 10, boxQuantity: 1, stripsPerBox: 0, tabletsPerStrip: 0, description: '', prescription: false, isActive: true })
+  const [form, setForm] = useState<any>(editing || { name: '', genericName: '', categoryId: '', typeId: '', manufacturerId: '', unitId: '', barcode: '', productCode: '', image: '', purchasePrice: 0, sellingPrice: 0, discountPercent: 0, vatPercent: 0, minStockLevel: 10, boxQuantity: 1, stripsPerBox: 0, tabletsPerStrip: 0, description: '', prescription: false, isActive: true })
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  async function handleUpload(file: File) {
+    setUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/medicines/upload', { method: 'POST', body: fd })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error)
+      setForm({ ...form, image: d.url })
+      toast.success('Image uploaded')
+    } catch (e: any) { toast.error(e.message) } finally { setUploading(false) }
+  }
 
   async function save() {
     setSaving(true)
@@ -200,6 +427,31 @@ function MedicineDialog({ open, onOpenChange, editing, cats, types, manuf, units
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto scroll-thin">
         <DialogHeader><DialogTitle>{editing ? 'Edit Medicine' : 'Add Medicine'}</DialogTitle></DialogHeader>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
+          {/* Image upload */}
+          <div className="md:col-span-2">
+            <Label className="text-xs font-medium text-slate-600 mb-2 block">Medicine Image</Label>
+            <div className="flex items-center gap-4">
+              <div className="w-20 h-20 rounded-xl border-2 border-dashed border-slate-200 overflow-hidden flex items-center justify-center bg-slate-50 shrink-0">
+                {form.image ? (
+                  <img src={form.image} alt="Preview" className="w-full h-full object-cover" />
+                ) : (
+                  <ImageIcon className="w-8 h-8 text-slate-300" />
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f) }} />
+                <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
+                  <Upload className="w-4 h-4 mr-2" /> {uploading ? 'Uploading...' : 'Upload Image'}
+                </Button>
+                {form.image && (
+                  <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setForm({ ...form, image: '' })}>
+                    <X className="w-4 h-4 mr-1" /> Remove
+                  </Button>
+                )}
+                <Input placeholder="Or paste image URL" value={form.image || ''} onChange={(e) => setForm({ ...form, image: e.target.value })} className="text-xs h-8" />
+              </div>
+            </div>
+          </div>
           <Field label="Brand Name *"><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
           <Field label="Generic Name"><Input value={form.genericName} onChange={(e) => setForm({ ...form, genericName: e.target.value })} /></Field>
           <Field label="Category"><Select value={form.categoryId || 'none'} onValueChange={(v) => setForm({ ...form, categoryId: v === 'none' ? null : v })}><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger><SelectContent><SelectItem value="none">None</SelectItem>{cats?.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></Field>
@@ -235,7 +487,10 @@ function ViewDialog({ medicine, onClose, onEdit }: any) {
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
-        <DialogHeader><DialogTitle>{medicine.name}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="flex items-center gap-3">
+          {medicine.image ? <img src={medicine.image} alt={medicine.name} className="w-12 h-12 rounded-lg object-cover border border-slate-200" /> : <MedicineImage medicine={medicine} size={48} />}
+          {medicine.name}
+        </DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-3 text-sm">
           <Info label="Generic Name" value={medicine.genericName} />
           <Info label="Category" value={medicine.category?.name} />

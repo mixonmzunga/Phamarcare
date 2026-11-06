@@ -1,0 +1,394 @@
+     1→'use client'
+     2→
+     3→import { useState, useMemo } from 'react'
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     5→import { PageHeader, LoadingState, EmptyState, ConfirmDialog, BadgeStatus } from '@/components/shared'
+     6→import { Card } from '@/components/ui/card'
+     7→import { Button } from '@/components/ui/button'
+     8→import { Input } from '@/components/ui/input'
+     9→import { Label } from '@/components/ui/label'
+    10→import { Textarea } from '@/components/ui/textarea'
+    11→import { Badge } from '@/components/ui/badge'
+    12→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    13→import { Switch } from '@/components/ui/switch'
+    14→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+    15→import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+    16→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    17→import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+    18→import { toast } from 'sonner'
+    19→import { useNav } from '@/lib/store'
+    20→import { formatMoney } from '@/lib/format'
+    21→import { Plus, Search, Edit, Trash2, Eye, Pill, Barcode as BarcodeIcon, Tag, Layers, MoreVertical } from 'lucide-react'
+    22→
+    23→interface Medicine { id: string; name: string; genericName?: string|null; barcode?: string|null; productCode?: string|null; categoryId?: string|null; typeId?: string|null; manufacturerId?: string|null; unitId?: string|null; purchasePrice: number; sellingPrice: number; discountPercent: number; vatPercent: number; minStockLevel: number; boxQuantity: number; stripsPerBox: number; tabletsPerStrip: number; description?: string|null; prescription: boolean; isActive: boolean; category?: any; type?: any; manufacturer?: any; unit?: any; totalStock?: number }
+    24→
+    25→export function MedicinesModule() {
+    26→  const { params, setView } = useNav()
+    27→  const qc = useQueryClient()
+    28→  const [search, setSearch] = useState(params.search || '')
+    29→  const [categoryId, setCategoryId] = useState<string>('all')
+    30→  const [typeId, setTypeId] = useState<string>('all')
+    31→  const [showInactive, setShowInactive] = useState(false)
+    32→  const [dialogOpen, setDialogOpen] = useState(false)
+    33→  const [editing, setEditing] = useState<Medicine | null>(null)
+    34→  const [viewing, setViewing] = useState<Medicine | null>(null)
+    35→  const [deleteId, setDeleteId] = useState<string | null>(null)
+    36→  const [activeTab, setActiveTab] = useState('medicines')
+    37→
+    38→  const { data, isLoading } = useQuery({
+    39→    queryKey: ['medicines', search, categoryId, typeId, showInactive],
+    40→    queryFn: async () => {
+    41→      const p = new URLSearchParams()
+    42→      if (search) p.set('q', search)
+    43→      if (categoryId !== 'all') p.set('categoryId', categoryId)
+    44→      if (typeId !== 'all') p.set('typeId', typeId)
+    45→      if (showInactive) p.set('all', '1')
+    46→      const res = await fetch(`/api/medicines?${p}`)
+    47→      return res.json()
+    48→    },
+    49→  })
+    50→  const { data: cats } = useQuery({ queryKey: ['categories'], queryFn: async () => (await fetch('/api/categories')).json() })
+    51→  const { data: types } = useQuery({ queryKey: ['types'], queryFn: async () => (await fetch('/api/types')).json() })
+    52→  const { data: manuf } = useQuery({ queryKey: ['manufacturers'], queryFn: async () => (await fetch('/api/manufacturers')).json() })
+    53→  const { data: units } = useQuery({ queryKey: ['units'], queryFn: async () => (await fetch('/api/units')).json() })
+    54→
+    55→  const medicines = data?.items || []
+    56→
+    57→  const deleteMut = useMutation({
+    58→    mutationFn: async (id: string) => {
+    59→      const res = await fetch(`/api/medicines/${id}`, { method: 'DELETE' })
+    60→      const d = await res.json()
+    61→      if (!res.ok) throw new Error(d.error)
+    62→      return d
+    63→    },
+    64→    onSuccess: (d) => { toast.success(d.deactivated ? 'Medicine deactivated (has transaction history)' : 'Medicine deleted'); qc.invalidateQueries({ queryKey: ['medicines'] }) },
+    65→    onError: (e: any) => toast.error(e.message),
+    66→  })
+    67→
+    68→  return (
+    69→    <div>
+    70→      <PageHeader
+    71→        title="Medicine Management"
+    72→        subtitle={`${medicines.length} medicine(s) in catalog`}
+    73→        actions={<Button onClick={() => { setEditing(null); setDialogOpen(true) }} className="bg-primary"><Plus className="w-4 h-4 mr-2" /> Add Medicine</Button>}
+    74→      />
+    75→
+    76→      <Tabs value={activeTab} onValueChange={setActiveTab}>
+    77→        <TabsList className="bg-slate-100">
+    78→          <TabsTrigger value="medicines"><Pill className="w-4 h-4 mr-1.5" /> Medicines</TabsTrigger>
+    79→          <TabsTrigger value="categories"><Layers className="w-4 h-4 mr-1.5" /> Categories</TabsTrigger>
+    80→          <TabsTrigger value="types"><Tag className="w-4 h-4 mr-1.5" /> Types</TabsTrigger>
+    81→          <TabsTrigger value="units">Units</TabsTrigger>
+    82→          <TabsTrigger value="manufacturers">Manufacturers</TabsTrigger>
+    83→        </TabsList>
+    84→
+    85→        <TabsContent value="medicines" className="mt-4">
+    86→          <Card className="border-slate-200 shadow-sm p-4 mb-4">
+    87→            <div className="flex flex-col md:flex-row gap-3">
+    88→              <div className="relative flex-1">
+    89→                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+    90→                <Input placeholder="Search by name, generic, barcode, product code..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+    91→              </div>
+    92→              <Select value={categoryId} onValueChange={setCategoryId}>
+    93→                <SelectTrigger className="w-full md:w-44"><SelectValue placeholder="Category" /></SelectTrigger>
+    94→                <SelectContent><SelectItem value="all">All Categories</SelectItem>{cats?.items?.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+    95→              </Select>
+    96→              <Select value={typeId} onValueChange={setTypeId}>
+    97→                <SelectTrigger className="w-full md:w-44"><SelectValue placeholder="Type" /></SelectTrigger>
+    98→                <SelectContent><SelectItem value="all">All Types</SelectItem>{types?.items?.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+    99→              </Select>
+   100→              <label className="flex items-center gap-2 text-sm text-slate-600 whitespace-nowrap">
+   101→                <Switch checked={showInactive} onCheckedChange={setShowInactive} /> Show inactive
+   102→              </label>
+   103→            </div>
+   104→          </Card>
+   105→
+   106→          <Card className="border-slate-200 shadow-sm">
+   107→            {isLoading ? <div className="p-4"><LoadingState /></div> : medicines.length === 0 ? (
+   108→              <EmptyState title="No medicines found" description="Add your first medicine to get started" action={<Button onClick={() => { setEditing(null); setDialogOpen(true) }} className="bg-primary"><Plus className="w-4 h-4 mr-2" /> Add Medicine</Button>} />
+   109→            ) : (
+   110→              <div className="overflow-x-auto scroll-thin"><div className="min-w-[640px]">
+   111→                <Table>
+   112→                  <TableHeader>
+   113→                    <TableRow className="bg-slate-50">
+   114→                      <TableHead>Medicine</TableHead>
+   115→                      <TableHead>Category</TableHead>
+   116→                      <TableHead>Manufacturer</TableHead>
+   117→                      <TableHead className="text-right">Purchase</TableHead>
+   118→                      <TableHead className="text-right">Selling</TableHead>
+   119→                      <TableHead className="text-center">Stock</TableHead>
+   120→                      <TableHead className="text-center">Status</TableHead>
+   121→                      <TableHead className="text-right">Actions</TableHead>
+   122→                    </TableRow>
+   123→                  </TableHeader>
+   124→                  <TableBody>
+   125→                    {medicines.map((m: Medicine) => (
+   126→                      <TableRow key={m.id} className="hover:bg-slate-50">
+   127→                        <TableCell>
+   128→                          <div className="font-medium text-slate-800">{m.name}</div>
+   129→                          <div className="text-xs text-slate-400 flex items-center gap-2">
+   130→                            {m.genericName && <span>{m.genericName}</span>}
+   131→                            {m.barcode && <span className="flex items-center gap-0.5"><BarcodeIcon className="w-3 h-3" />{m.barcode}</span>}
+   132→                            {m.prescription && <Badge variant="secondary" className="text-[10px] h-4">Rx</Badge>}
+   133→                          </div>
+   134→                        </TableCell>
+   135→                        <TableCell className="text-sm text-slate-600">{m.category?.name || '-'}</TableCell>
+   136→                        <TableCell className="text-sm text-slate-600">{m.manufacturer?.name || '-'}</TableCell>
+   137→                        <TableCell className="text-right text-sm">{formatMoney(m.purchasePrice)}</TableCell>
+   138→                        <TableCell className="text-right text-sm font-medium">{formatMoney(m.sellingPrice)}</TableCell>
+   139→                        <TableCell className="text-center">
+   140→                          <Badge variant={(m.totalStock ?? 0) <= m.minStockLevel ? 'destructive' : 'secondary'}>{m.totalStock ?? 0}</Badge>
+   141→                        </TableCell>
+   142→                        <TableCell className="text-center"><BadgeStatus status={m.isActive ? 'ACTIVE' : 'INACTIVE'} /></TableCell>
+   143→                        <TableCell className="text-right">
+   144→                          <DropdownMenu>
+   145→                            <DropdownMenuTrigger asChild>
+   146→                              <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="w-4 h-4" /></Button>
+   147→                            </DropdownMenuTrigger>
+   148→                            <DropdownMenuContent align="end" className="w-40">
+   149→                              <DropdownMenuItem onClick={() => setViewing(m)}><Eye className="w-4 h-4 mr-2" /> View</DropdownMenuItem>
+   150→                              <DropdownMenuItem onClick={() => { setEditing(m); setDialogOpen(true) }}><Edit className="w-4 h-4 mr-2" /> Edit</DropdownMenuItem>
+   151→                              <DropdownMenuSeparator />
+   152→                              <DropdownMenuItem onClick={() => setDeleteId(m.id)} className="text-destructive focus:text-destructive"><Trash2 className="w-4 h-4 mr-2" /> Delete</DropdownMenuItem>
+   153→                            </DropdownMenuContent>
+   154→                          </DropdownMenu>
+   155→                        </TableCell>
+   156→                      </TableRow>
+   157→                    ))}
+   158→                  </TableBody>
+   159→                </Table>
+   160→              </div>
+   161→          </div>
+   162→            )}
+   163→          </Card>
+   164→        </TabsContent>
+   165→
+   166→        <TabsContent value="categories" className="mt-4"><SimpleMasterList model="categories" label="Category" field="name" hasDesc /></TabsContent>
+   167→        <TabsContent value="types" className="mt-4"><SimpleMasterList model="types" label="Type" field="name" /></TabsContent>
+   168→        <TabsContent value="units" className="mt-4"><SimpleMasterList model="units" label="Unit" field="name" /></TabsContent>
+   169→        <TabsContent value="manufacturers" className="mt-4"><ManufacturerList /></TabsContent>
+   170→      </Tabs>
+   171→
+   172→      {dialogOpen && <MedicineDialog open={dialogOpen} onOpenChange={setDialogOpen} editing={editing} cats={cats?.items} types={types?.items} manuf={manuf?.items} units={units?.items} />}
+   173→      {viewing && <ViewDialog medicine={viewing} onClose={() => setViewing(null)} onEdit={() => { setEditing(viewing); setViewing(null); setDialogOpen(true) }} />}
+   174→      <ConfirmDialog open={!!deleteId} onOpenChange={(v) => !v && setDeleteId(null)} title="Delete Medicine" description="This medicine will be deleted. If it has transaction history it will be deactivated instead." confirmText="Delete" destructive onConfirm={() => { if (deleteId) deleteMut.mutate(deleteId); setDeleteId(null) }} />
+   175→    </div>
+   176→  )
+   177→}
+   178→
+   179→function MedicineDialog({ open, onOpenChange, editing, cats, types, manuf, units }: any) {
+   180→  const qc = useQueryClient()
+   181→  const [form, setForm] = useState<any>(editing || { name: '', genericName: '', categoryId: '', typeId: '', manufacturerId: '', unitId: '', barcode: '', productCode: '', purchasePrice: 0, sellingPrice: 0, discountPercent: 0, vatPercent: 0, minStockLevel: 10, boxQuantity: 1, stripsPerBox: 0, tabletsPerStrip: 0, description: '', prescription: false, isActive: true })
+   182→  const [saving, setSaving] = useState(false)
+   183→
+   184→  async function save() {
+   185→    setSaving(true)
+   186→    try {
+   187→      const url = editing ? `/api/medicines/${editing.id}` : '/api/medicines'
+   188→      const method = editing ? 'PUT' : 'POST'
+   189→      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
+   190→      const d = await res.json()
+   191→      if (!res.ok) throw new Error(d.error)
+   192→      toast.success(editing ? 'Medicine updated' : 'Medicine added')
+   193→      qc.invalidateQueries({ queryKey: ['medicines'] })
+   194→      onOpenChange(false)
+   195→    } catch (e: any) { toast.error(e.message) } finally { setSaving(false) }
+   196→  }
+   197→
+   198→  return (
+   199→    <Dialog open={open} onOpenChange={onOpenChange}>
+   200→      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto scroll-thin">
+   201→        <DialogHeader><DialogTitle>{editing ? 'Edit Medicine' : 'Add Medicine'}</DialogTitle></DialogHeader>
+   202→        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
+   203→          <Field label="Brand Name *"><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+   204→          <Field label="Generic Name"><Input value={form.genericName} onChange={(e) => setForm({ ...form, genericName: e.target.value })} /></Field>
+   205→          <Field label="Category"><Select value={form.categoryId || 'none'} onValueChange={(v) => setForm({ ...form, categoryId: v === 'none' ? null : v })}><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger><SelectContent><SelectItem value="none">None</SelectItem>{cats?.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></Field>
+   206→          <Field label="Medicine Type"><Select value={form.typeId || 'none'} onValueChange={(v) => setForm({ ...form, typeId: v === 'none' ? null : v })}><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger><SelectContent><SelectItem value="none">None</SelectItem>{types?.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent></Select></Field>
+   207→          <Field label="Manufacturer"><Select value={form.manufacturerId || 'none'} onValueChange={(v) => setForm({ ...form, manufacturerId: v === 'none' ? null : v })}><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger><SelectContent><SelectItem value="none">None</SelectItem>{manuf?.map((m: any) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}</SelectContent></Select></Field>
+   208→          <Field label="Unit"><Select value={form.unitId || 'none'} onValueChange={(v) => setForm({ ...form, unitId: v === 'none' ? null : v })}><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger><SelectContent><SelectItem value="none">None</SelectItem>{units?.map((u: any) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent></Select></Field>
+   209→          <Field label="Barcode"><Input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} /></Field>
+   210→          <Field label="Product Code"><Input value={form.productCode} onChange={(e) => setForm({ ...form, productCode: e.target.value })} placeholder="Auto-generated if empty" /></Field>
+   211→          <Field label="Purchase Price"><Input type="number" step="0.01" value={form.purchasePrice} onChange={(e) => setForm({ ...form, purchasePrice: Number(e.target.value) })} /></Field>
+   212→          <Field label="Selling Price"><Input type="number" step="0.01" value={form.sellingPrice} onChange={(e) => setForm({ ...form, sellingPrice: Number(e.target.value) })} /></Field>
+   213→          <Field label="Discount %"><Input type="number" step="0.01" value={form.discountPercent} onChange={(e) => setForm({ ...form, discountPercent: Number(e.target.value) })} /></Field>
+   214→          <Field label="VAT %"><Input type="number" step="0.01" value={form.vatPercent} onChange={(e) => setForm({ ...form, vatPercent: Number(e.target.value) })} /></Field>
+   215→          <Field label="Min Stock Level"><Input type="number" value={form.minStockLevel} onChange={(e) => setForm({ ...form, minStockLevel: Number(e.target.value) })} /></Field>
+   216→          <Field label="Box Quantity"><Input type="number" value={form.boxQuantity} onChange={(e) => setForm({ ...form, boxQuantity: Number(e.target.value) })} /></Field>
+   217→          <Field label="Strips per Box"><Input type="number" value={form.stripsPerBox} onChange={(e) => setForm({ ...form, stripsPerBox: Number(e.target.value) })} /></Field>
+   218→          <Field label="Tablets per Strip"><Input type="number" value={form.tabletsPerStrip} onChange={(e) => setForm({ ...form, tabletsPerStrip: Number(e.target.value) })} /></Field>
+   219→          <div className="md:col-span-2"><Field label="Description"><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} /></Field></div>
+   220→          <div className="flex items-center gap-6">
+   221→            <label className="flex items-center gap-2 text-sm"><Switch checked={form.prescription} onCheckedChange={(v) => setForm({ ...form, prescription: v })} /> Prescription Required</label>
+   222→            <label className="flex items-center gap-2 text-sm"><Switch checked={form.isActive} onCheckedChange={(v) => setForm({ ...form, isActive: v })} /> Active</label>
+   223→          </div>
+   224→        </div>
+   225→        <DialogFooter>
+   226→          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+   227→          <Button onClick={save} disabled={saving || !form.name} className="bg-primary">{saving ? 'Saving...' : 'Save'}</Button>
+   228→        </DialogFooter>
+   229→      </DialogContent>
+   230→    </Dialog>
+   231→  )
+   232→}
+   233→
+   234→function ViewDialog({ medicine, onClose, onEdit }: any) {
+   235→  return (
+   236→    <Dialog open onOpenChange={onClose}>
+   237→      <DialogContent className="max-w-2xl">
+   238→        <DialogHeader><DialogTitle>{medicine.name}</DialogTitle></DialogHeader>
+   239→        <div className="grid grid-cols-2 gap-3 text-sm">
+   240→          <Info label="Generic Name" value={medicine.genericName} />
+   241→          <Info label="Category" value={medicine.category?.name} />
+   242→          <Info label="Type" value={medicine.type?.name} />
+   243→          <Info label="Manufacturer" value={medicine.manufacturer?.name} />
+   244→          <Info label="Unit" value={medicine.unit?.name} />
+   245→          <Info label="Barcode" value={medicine.barcode} />
+   246→          <Info label="Product Code" value={medicine.productCode} />
+   247→          <Info label="Purchase Price" value={formatMoney(medicine.purchasePrice)} />
+   248→          <Info label="Selling Price" value={formatMoney(medicine.sellingPrice)} />
+   249→          <Info label="Min Stock" value={String(medicine.minStockLevel)} />
+   250→          <Info label="Current Stock" value={String(medicine.totalStock ?? 0)} />
+   251→          <Info label="Prescription" value={medicine.prescription ? 'Yes' : 'No'} />
+   252→        </div>
+   253→        {medicine.description && <div className="text-sm text-slate-600 mt-2"><span className="font-medium">Description: </span>{medicine.description}</div>}
+   254→        <DialogFooter>
+   255→          <Button variant="outline" onClick={onClose}>Close</Button>
+   256→          <Button onClick={onEdit} className="bg-primary"><Edit className="w-4 h-4 mr-2" /> Edit</Button>
+   257→        </DialogFooter>
+   258→      </DialogContent>
+   259→    </Dialog>
+   260→  )
+   261→}
+   262→
+   263→function SimpleMasterList({ model, label, field, hasDesc }: { model: string; label: string; field: string; hasDesc?: boolean }) {
+   264→  const qc = useQueryClient()
+   265→  const { data, isLoading } = useQuery({ queryKey: [model], queryFn: async () => (await fetch(`/api/${model}`)).json() })
+   266→  const [open, setOpen] = useState(false)
+   267→  const [editing, setEditing] = useState<any>(null)
+   268→  const [form, setForm] = useState<any>({ name: '', description: '' })
+   269→  const [deleteId, setDeleteId] = useState<string | null>(null)
+   270→
+   271→  const saveMut = useMutation({
+   272→    mutationFn: async (data: any) => {
+   273→      const url = editing ? `/api/${model}/${editing.id}` : `/api/${model}`
+   274→      const method = editing ? 'PUT' : 'POST'
+   275→      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+   276→      const d = await res.json()
+   277→      if (!res.ok) throw new Error(d.error)
+   278→      return d
+   279→    },
+   280→    onSuccess: () => { toast.success('Saved'); qc.invalidateQueries({ queryKey: [model] }); setOpen(false) },
+   281→    onError: (e: any) => toast.error(e.message),
+   282→  })
+   283→  const delMut = useMutation({
+   284→    mutationFn: async (id: string) => { const res = await fetch(`/api/${model}/${id}`, { method: 'DELETE' }); const d = await res.json(); if (!res.ok) throw new Error(d.error); return d },
+   285→    onSuccess: () => { toast.success('Deleted'); qc.invalidateQueries({ queryKey: [model] }) },
+   286→    onError: (e: any) => toast.error(e.message),
+   287→  })
+   288→
+   289→  const items = data?.items || []
+   290→  return (
+   291→    <Card className="border-slate-200 shadow-sm">
+   292→      <div className="p-4 flex justify-between items-center border-b border-slate-100">
+   293→        <h3 className="font-semibold text-slate-700">{label}s ({items.length})</h3>
+   294→        <Button onClick={() => { setEditing(null); setForm({ name: '', description: '' }); setOpen(true) }} size="sm" className="bg-primary"><Plus className="w-4 h-4 mr-1" /> Add {label}</Button>
+   295→      </div>
+   296→      {isLoading ? <LoadingState /> : items.length === 0 ? <EmptyState title={`No ${label.toLowerCase()}s`} /> : (
+   297→        <Table>
+   298→          <TableHeader><TableRow className="bg-slate-50"><TableHead>Name</TableHead>{hasDesc && <TableHead>Description</TableHead>}<TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+   299→          <TableBody>
+   300→            {items.map((it: any) => (
+   301→              <TableRow key={it.id}>
+   302→                <TableCell className="font-medium">{it.name}</TableCell>
+   303→                {hasDesc && <TableCell className="text-sm text-slate-500">{it.description || '-'}</TableCell>}
+   304→                <TableCell className="text-right">
+   305→                  <Button variant="ghost" size="icon" onClick={() => { setEditing(it); setForm({ name: it.name, description: it.description || '' }); setOpen(true) }}><Edit className="w-4 h-4" /></Button>
+   306→                  <Button variant="ghost" size="icon" onClick={() => setDeleteId(it.id)} className="text-destructive"><Trash2 className="w-4 h-4" /></Button>
+   307→                </TableCell>
+   308→              </TableRow>
+   309→            ))}
+   310→          </TableBody>
+   311→        </Table>
+   312→      )}
+   313→      <Dialog open={open} onOpenChange={setOpen}>
+   314→        <DialogContent>
+   315→          <DialogHeader><DialogTitle>{editing ? `Edit ${label}` : `Add ${label}`}</DialogTitle></DialogHeader>
+   316→          <div className="space-y-3 py-2">
+   317→            <Field label="Name *"><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+   318→            {hasDesc && <Field label="Description"><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} /></Field>}
+   319→          </div>
+   320→          <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={() => saveMut.mutate(form)} disabled={!form.name} className="bg-primary">Save</Button></DialogFooter>
+   321→        </DialogContent>
+   322→      </Dialog>
+   323→      <ConfirmDialog open={!!deleteId} onOpenChange={(v) => !v && setDeleteId(null)} title={`Delete ${label}`} description="Are you sure?" confirmText="Delete" destructive onConfirm={() => { if (deleteId) delMut.mutate(deleteId); setDeleteId(null) }} />
+   324→    </Card>
+   325→  )
+   326→}
+   327→
+   328→function ManufacturerList() {
+   329→  const qc = useQueryClient()
+   330→  const { data, isLoading } = useQuery({ queryKey: ['manufacturers'], queryFn: async () => (await fetch('/api/manufacturers')).json() })
+   331→  const [open, setOpen] = useState(false)
+   332→  const [editing, setEditing] = useState<any>(null)
+   333→  const [form, setForm] = useState<any>({ name: '', contact: '', phone: '', email: '', address: '' })
+   334→  const [deleteId, setDeleteId] = useState<string | null>(null)
+   335→  const saveMut = useMutation({
+   336→    mutationFn: async (data: any) => { const url = editing ? `/api/manufacturers/${editing.id}` : '/api/manufacturers'; const method = editing ? 'PUT' : 'POST'; const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); const d = await res.json(); if (!res.ok) throw new Error(d.error); return d },
+   337→    onSuccess: () => { toast.success('Saved'); qc.invalidateQueries({ queryKey: ['manufacturers'] }); setOpen(false) },
+   338→    onError: (e: any) => toast.error(e.message),
+   339→  })
+   340→  const delMut = useMutation({
+   341→    mutationFn: async (id: string) => { const res = await fetch(`/api/manufacturers/${id}`, { method: 'DELETE' }); const d = await res.json(); if (!res.ok) throw new Error(d.error); return d },
+   342→    onSuccess: () => { toast.success('Deleted'); qc.invalidateQueries({ queryKey: ['manufacturers'] }) },
+   343→    onError: (e: any) => toast.error(e.message),
+   344→  })
+   345→  const items = data?.items || []
+   346→  return (
+   347→    <Card className="border-slate-200 shadow-sm">
+   348→      <div className="p-4 flex justify-between items-center border-b border-slate-100">
+   349→        <h3 className="font-semibold text-slate-700">Manufacturers ({items.length})</h3>
+   350→        <Button onClick={() => { setEditing(null); setForm({ name: '', contact: '', phone: '', email: '', address: '' }); setOpen(true) }} size="sm" className="bg-primary"><Plus className="w-4 h-4 mr-1" /> Add Manufacturer</Button>
+   351→      </div>
+   352→      {isLoading ? <LoadingState /> : items.length === 0 ? <EmptyState title="No manufacturers" /> : (
+   353→        <Table>
+   354→          <TableHeader><TableRow className="bg-slate-50"><TableHead>Name</TableHead><TableHead>Contact</TableHead><TableHead>Phone</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+   355→          <TableBody>
+   356→            {items.map((m: any) => (
+   357→              <TableRow key={m.id}>
+   358→                <TableCell className="font-medium">{m.name}</TableCell>
+   359→                <TableCell className="text-sm text-slate-600">{m.contact || '-'}</TableCell>
+   360→                <TableCell className="text-sm text-slate-600">{m.phone || '-'}</TableCell>
+   361→                <TableCell className="text-right">
+   362→                  <Button variant="ghost" size="icon" onClick={() => { setEditing(m); setForm({ name: m.name, contact: m.contact || '', phone: m.phone || '', email: m.email || '', address: m.address || '' }); setOpen(true) }}><Edit className="w-4 h-4" /></Button>
+   363→                  <Button variant="ghost" size="icon" onClick={() => setDeleteId(m.id)} className="text-destructive"><Trash2 className="w-4 h-4" /></Button>
+   364→                </TableCell>
+   365→              </TableRow>
+   366→            ))}
+   367→          </TableBody>
+   368→        </Table>
+   369→      )}
+   370→      <Dialog open={open} onOpenChange={setOpen}>
+   371→        <DialogContent>
+   372→          <DialogHeader><DialogTitle>{editing ? 'Edit Manufacturer' : 'Add Manufacturer'}</DialogTitle></DialogHeader>
+   373→          <div className="grid grid-cols-2 gap-3 py-2">
+   374→            <Field label="Company Name *"><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+   375→            <Field label="Contact Person"><Input value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} /></Field>
+   376→            <Field label="Phone"><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
+   377→            <Field label="Email"><Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
+   378→            <div className="col-span-2"><Field label="Address"><Textarea value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} rows={2} /></Field></div>
+   379→          </div>
+   380→          <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={() => saveMut.mutate(form)} disabled={!form.name} className="bg-primary">Save</Button></DialogFooter>
+   381→        </DialogContent>
+   382→      </Dialog>
+   383→      <ConfirmDialog open={!!deleteId} onOpenChange={(v) => !v && setDeleteId(null)} title="Delete Manufacturer" description="Are you sure?" confirmText="Delete" destructive onConfirm={() => { if (deleteId) delMut.mutate(deleteId); setDeleteId(null) }} />
+   384→    </Card>
+   385→  )
+   386→}
+   387→
+   388→function Field({ label, children }: { label: string; children: React.ReactNode }) {
+   389→  return <div><Label className="text-xs font-medium text-slate-600 mb-1 block">{label}</Label>{children}</div>
+   390→}
+   391→function Info({ label, value }: { label: string; value?: string | null }) {
+   392→  return <div><span className="text-xs text-slate-400">{label}</span><p className="font-medium text-slate-700">{value || '-'}</p></div>
+   393→}
+   394→
