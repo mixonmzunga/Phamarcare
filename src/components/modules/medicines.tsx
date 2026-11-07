@@ -309,7 +309,58 @@ export function MedicinesModule() {
             {isLoading ? <div className="p-4"><LoadingState /></div> : medicines.length === 0 ? (
               <EmptyState title="No medicines found" description="Add your first medicine to get started" action={<Button onClick={() => { setEditing(null); setDialogOpen(true) }} className="bg-primary"><Plus className="w-4 h-4 mr-2" /> Add Medicine</Button>} />
             ) : (
-              <div className="overflow-x-auto scroll-thin"><div className="min-w-[760px]">
+              <>
+                {/* Mobile: Card list with tap-to-view */}
+                <div className="lg:hidden divide-y divide-slate-100">
+                  <div className="flex items-center gap-3 px-4 py-2.5 bg-slate-50 border-b border-slate-100 sticky top-0 z-10">
+                    <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="Select all" />
+                    <span className="text-xs font-medium text-slate-500">
+                      {selectedIds.size > 0 ? `${selectedIds.size} selected` : `${medicines.length} medicines`}
+                    </span>
+                  </div>
+                  {medicines.map((m: Medicine) => (
+                    <div
+                      key={m.id}
+                      className={`flex items-center gap-3 px-4 py-3 active:bg-slate-50 transition-colors cursor-pointer ${selectedIds.has(m.id) ? 'bg-primary/5' : ''}`}
+                      onClick={() => setViewing(m)}
+                    >
+                      <div onClick={(e) => { e.stopPropagation(); toggleOne(m.id) }}>
+                        <Checkbox checked={selectedIds.has(m.id)} aria-label={`Select ${m.name}`} />
+                      </div>
+                      <MedicineImage medicine={m} size={44} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-medium text-slate-800 truncate">{m.name}</p>
+                          {m.prescription && <Badge variant="secondary" className="text-[9px] h-4 shrink-0">Rx</Badge>}
+                        </div>
+                        <p className="text-xs text-slate-400 truncate">{m.category?.name || 'Uncategorized'} · {m.manufacturer?.name || '-'}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-sm font-bold text-primary">{formatMoney(m.sellingPrice)}</span>
+                          <Badge variant={(m.totalStock ?? 0) <= m.minStockLevel ? 'destructive' : 'secondary'} className="text-[10px] h-4">{m.totalStock ?? 0} in stock</Badge>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        <BadgeStatus status={m.isActive ? 'ACTIVE' : 'INACTIVE'} />
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
+                              <MoreVertical className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem onClick={() => setViewing(m)}><Eye className="w-4 h-4 mr-2" /> View</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setEditing(m); setDialogOpen(true) }}><Edit className="w-4 h-4 mr-2" /> Edit</DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => setDeleteId(m.id)} className="text-destructive focus:text-destructive"><Trash2 className="w-4 h-4 mr-2" /> Delete</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop: Table */}
+                <div className="hidden lg:block overflow-x-auto scroll-thin"><div className="min-w-[760px]">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-slate-50">
@@ -371,6 +422,7 @@ export function MedicinesModule() {
                 </Table>
               </div>
           </div>
+              </>
             )}
           </Card>
         </TabsContent>

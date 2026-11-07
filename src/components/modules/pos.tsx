@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -14,9 +14,39 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { toast } from 'sonner'
 import { useNav } from '@/lib/store'
 import { formatMoney } from '@/lib/format'
-import { Search, Plus, Minus, Trash2, ShoppingCart, Pause, Play, Printer, X, ScanLine, Check, ChevronLeft } from 'lucide-react'
+import { useCart, CartItem } from '@/lib/cart-store'
+import { Search, Plus, Minus, Trash2, ShoppingCart, Pause, Play, Printer, X, ScanLine, Check, Pill } from 'lucide-react'
 
-interface CartItem { medicineId: string; name: string; price: number; qty: number; stock: number; discountPercent: number; vatPercent: number; prescription: boolean }
+// Placeholder avatar colors for medicines without images
+const AVATAR_COLORS = ['#2F6BFF', '#14B8A6', '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4', '#EC4899', '#84CC16']
+function colorForName(name: string) {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+}
+
+function MedicineImage({ medicine, size = 44 }: { medicine: any; size?: number }) {
+  const [imgError, setImgError] = useState(false)
+  if (medicine.image && !imgError) {
+    return (
+      <img
+        src={medicine.image}
+        alt={medicine.name}
+        onError={() => setImgError(true)}
+        className="rounded-lg object-cover shrink-0 border border-slate-200"
+        style={{ width: size, height: size }}
+      />
+    )
+  }
+  return (
+    <div
+      className="rounded-lg flex items-center justify-center text-white font-bold shrink-0"
+      style={{ width: size, height: size, background: colorForName(medicine.name), fontSize: size * 0.4 }}
+    >
+      {medicine.name[0]?.toUpperCase() || <Pill className="w-4 h-4" />}
+    </div>
+  )
+}
 
 const PAYMENT_METHODS = [
   { value: 'CASH', label: 'Cash' },
@@ -32,7 +62,15 @@ interface HeldBill { id: string; items: CartItem[]; customerName: string; custom
 export function PosModule() {
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
-  const [cart, setCart] = useState<CartItem[]>([])
+  const [activeCategory, setActiveCategory] = useState<string>('all')
+  const cart = useCart((s) => s.items)
+  const addItem = useCart((s) => s.addItem)
+  const updateQty = useCart((s) => s.updateQty)
+  const setQty = useCart((s) => s.setQty)
+  const setPrice = useCart((s) => s.setPrice)
+  const removeItem = useCart((s) => s.removeItem)
+  const clearCartItems = useCart((s) => s.clear)
+  const setCartItems = useCart((s) => s.setItems)
   const [customerId, setCustomerId] = useState('walkin')
   const [customerName, setCustomerName] = useState('Walk-in Customer')
   const [discountPercent, setDiscountPercent] = useState(0)
@@ -60,35 +98,34 @@ export function PosModule() {
     },
   })
   const { data: custData } = useQuery({ queryKey: ['pos-customers'], queryFn: async () => (await fetch('/api/customers')).json() })
+  const { data: catData } = useQuery({ queryKey: ['pos-categories'], queryFn: async () => (await fetch('/api/categories')).json() })
   const { data: settings } = useQuery({ queryKey: ['pos-settings'], queryFn: async () => (await fetch('/api/settings')).json() })
 
   const defaultVat = Number(settings?.vatPercent || 0)
-  const medicines = (medData?.items || []).filter((m: any) => (m.totalStock ?? 0) > 0)
+  const allMedicines = (medData?.items || []).filter((m: any) => (m.totalStock ?? 0) > 0)
+  const categories = catData?.items || []
+
+  // Filter by category
+  const medicines = useMemo(() => {
+    if (activeCategory === 'all') return allMedicines
+    return allMedicines.filter((m: any) => m.categoryId === activeCategory)
+  }, [allMedicines, activeCategory])
 
   function addToCart(m: any) {
-    setCart((prev) => {
-      const ex = prev.find((x) => x.medicineId === m.id)
-      if (ex) {
-        if (ex.qty + 1 > m.totalStock) { toast.error('Cannot exceed available stock'); return prev }
-        return prev.map((x) => x.medicineId === m.id ? { ...x, qty: x.qty + 1 } : x)
-      }
-      return [...prev, { medicineId: m.id, name: m.name, price: m.sellingPrice, qty: 1, stock: m.totalStock, discountPercent: m.discountPercent || 0, vatPercent: m.vatPercent || defaultVat, prescription: m.prescription }]
+    const existing = cart.find((x) => x.medicineId === m.id)
+    if (existing && existing.qty + 1 > m.totalStock) {
+      toast.error('Cannot exceed available stock')
+      return
+    }
+    addItem({
+      medicineId: m.id, name: m.name, image: m.image, price: m.sellingPrice, qty: 1,
+      stock: m.totalStock, discountPercent: m.discountPercent || 0,
+      vatPercent: m.vatPercent || defaultVat, prescription: m.prescription,
     })
   }
-  function updateQty(id: string, delta: number) {
-    setCart((prev) => prev.map((x) => {
-      if (x.medicineId !== id) return x
-      const q = x.qty + delta
-      if (q <= 0) return x
-      if (q > x.stock) { toast.error('Cannot exceed available stock'); return x }
-      return { ...x, qty: q }
-    }))
-  }
-  function setQty(id: string, val: number) { setCart((prev) => prev.map((x) => x.medicineId === id ? { ...x, qty: Math.min(Math.max(1, val), x.stock) } : x)) }
-  function setPrice(id: string, val: number) { setCart((prev) => prev.map((x) => x.medicineId === id ? { ...x, price: Math.max(0, val) } : x)) }
-  function removeItem(id: string) { setCart((prev) => prev.filter((x) => x.medicineId !== id)) }
-  function clearCart() { setCart([]); setDiscountPercent(0); setPaidAmount(0); setNote('') }
+  function clearCart() { clearCartItems(); setDiscountPercent(0); setPaidAmount(0); setNote('') }
 
+  const cartCount = cart.reduce((s, x) => s + x.qty, 0)
   const subTotal = cart.reduce((s, x) => s + x.price * x.qty, 0)
   const itemDiscount = cart.reduce((s, x) => s + x.price * x.qty * (x.discountPercent / 100), 0)
   const afterDiscount = subTotal - itemDiscount
@@ -112,7 +149,7 @@ export function PosModule() {
     toast.success('Bill held')
   }
   function recallBill(bill: HeldBill) {
-    setCart(bill.items); setCustomerId(bill.customerId); setCustomerName(bill.customerName)
+    setCartItems(bill.items); setCustomerId(bill.customerId); setCustomerName(bill.customerName)
     const updated = heldBills.filter((b) => b.id !== bill.id)
     setHeldBills(updated)
     localStorage.setItem('pharmacare_held_bills', JSON.stringify(updated))
@@ -241,34 +278,150 @@ export function PosModule() {
     <div className="lg:h-[calc(100vh-7.5rem)] flex flex-col lg:flex-row gap-3 lg:gap-4">
       {/* Left: medicines (always visible) */}
       <div className="flex-1 flex flex-col min-h-0">
-        <Card className="border-slate-200 shadow-sm p-2.5 sm:p-3 mb-3">
-          <div className="relative">
-            <ScanLine className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-primary" />
-            <Input autoFocus placeholder="Scan barcode or search medicine..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10 h-11 text-base" onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                const m = medicines.find((x: any) => x.barcode === search || x.productCode === search)
-                if (m) { addToCart(m); setSearch(''); (e.target as HTMLInputElement).focus() }
-                else if (medicines.length === 1) { addToCart(medicines[0]); setSearch('') }
-              }
-            }} />
-          </div>
-        </Card>
-        <Card className="border-slate-200 shadow-sm flex-1 overflow-hidden lg:max-h-full max-h-[calc(100vh-13rem)] lg:max-h-none">
-          <ScrollArea className="h-full scroll-thin">
-            <div className="p-2 sm:p-3 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
-              {medicines.length === 0 && <div className="col-span-full text-center py-10 text-slate-400 text-sm">No medicines in stock</div>}
-              {medicines.map((m: any) => (
-                <button key={m.id} onClick={() => addToCart(m)} className="text-left p-2.5 sm:p-3 rounded-lg border border-slate-200 hover:border-primary hover:bg-primary/5 active:bg-primary/10 transition-colors group">
-                  <div className="flex items-start justify-between gap-1">
-                    <span className="text-xs sm:text-sm font-medium text-slate-800 line-clamp-2 leading-tight">{m.name}</span>
-                    {m.prescription && <Badge variant="secondary" className="text-[9px] h-4 shrink-0">Rx</Badge>}
+        {/* Search bar */}
+        <div className="mb-3 relative">
+          <ScanLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-primary z-10" />
+          <Input autoFocus placeholder="Scan barcode or search medicine..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-11 h-12 text-base rounded-xl border-slate-200 shadow-sm" onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              const m = medicines.find((x: any) => x.barcode === search || x.productCode === search)
+              if (m) { addToCart(m); setSearch(''); (e.target as HTMLInputElement).focus() }
+              else if (medicines.length === 1) { addToCart(medicines[0]); setSearch('') }
+            }
+          }} />
+        </div>
+
+        {/* Category filter chips */}
+        <div className="mb-3 flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          <button
+            onClick={() => setActiveCategory('all')}
+            className="px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors shrink-0"
+            style={{
+              background: activeCategory === 'all' ? 'linear-gradient(135deg, #2F6BFF 0%, #1e4fd6 100%)' : '#f1f5f9',
+              color: activeCategory === 'all' ? 'white' : '#64748b',
+            }}
+          >
+            All ({allMedicines.length})
+          </button>
+          {categories.map((c: any) => {
+            const count = allMedicines.filter((m: any) => m.categoryId === c.id).length
+            if (count === 0) return null
+            const active = activeCategory === c.id
+            return (
+              <button
+                key={c.id}
+                onClick={() => setActiveCategory(c.id)}
+                className="px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors shrink-0"
+                style={{
+                  background: active ? 'linear-gradient(135deg, #2F6BFF 0%, #1e4fd6 100%)' : '#f1f5f9',
+                  color: active ? 'white' : '#64748b',
+                }}
+              >
+                {c.name} ({count})
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Mobile: plain grid that flows in page scroll */}
+        <div className="lg:hidden pb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            {medicines.length === 0 && (
+              <div className="col-span-full flex flex-col items-center justify-center py-16 text-slate-400">
+                <Search className="w-10 h-10 mb-2 opacity-40" />
+                <p className="text-sm font-medium">No medicines found</p>
+                <p className="text-xs mt-1">Try a different search or category</p>
+              </div>
+            )}
+            {medicines.map((m: any) => {
+              const inCart = cart.find((x) => x.medicineId === m.id)
+              const lowStock = (m.totalStock ?? 0) <= m.minStockLevel
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => addToCart(m)}
+                  className="text-left rounded-xl border border-slate-200 hover:border-primary hover:shadow-md active:scale-[0.97] transition-all group overflow-hidden bg-white"
+                >
+                  <div className="relative h-20 bg-slate-50 flex items-center justify-center">
+                    {m.image ? (
+                      <img src={m.image} alt={m.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg" style={{ background: colorForName(m.name) }}>
+                        {m.name[0]?.toUpperCase()}
+                      </div>
+                    )}
+                    {m.prescription && (
+                      <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-violet-500 text-white text-[9px] font-bold">Rx</span>
+                    )}
+                    {inCart && (
+                      <span className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ background: 'linear-gradient(135deg, #2F6BFF 0%, #1e4fd6 100%)' }}>
+                        {inCart.qty}
+                      </span>
+                    )}
                   </div>
-                  <div className="flex items-center justify-between mt-1.5">
-                    <span className="text-xs sm:text-sm font-bold text-primary">{formatMoney(m.sellingPrice)}</span>
-                    <Badge variant={(m.totalStock ?? 0) <= m.minStockLevel ? 'destructive' : 'secondary'} className="text-[10px]">{m.totalStock ?? 0}</Badge>
+                  <div className="p-2">
+                    <p className="text-xs font-medium text-slate-800 line-clamp-2 leading-tight min-h-[2rem]">{m.name}</p>
+                    <div className="flex items-center justify-between mt-1.5">
+                      <span className="text-sm font-bold text-primary">{formatMoney(m.sellingPrice)}</span>
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${lowStock ? 'bg-red-100 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                        {m.totalStock ?? 0} left
+                      </span>
+                    </div>
                   </div>
                 </button>
-              ))}
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Desktop: ScrollArea in fixed-height card */}
+        <Card className="hidden lg:block border-slate-200 shadow-sm flex-1 overflow-hidden">
+          <ScrollArea className="h-full scroll-thin">
+            <div className="p-3 grid grid-cols-3 xl:grid-cols-4 gap-2.5">
+              {medicines.length === 0 && (
+                <div className="col-span-full flex flex-col items-center justify-center py-16 text-slate-400">
+                  <Search className="w-10 h-10 mb-2 opacity-40" />
+                  <p className="text-sm font-medium">No medicines found</p>
+                  <p className="text-xs mt-1">Try a different search or category</p>
+                </div>
+              )}
+              {medicines.map((m: any) => {
+                const inCart = cart.find((x) => x.medicineId === m.id)
+                const lowStock = (m.totalStock ?? 0) <= m.minStockLevel
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => addToCart(m)}
+                    className="text-left rounded-xl border border-slate-200 hover:border-primary hover:shadow-md active:scale-[0.97] transition-all group overflow-hidden bg-white"
+                  >
+                    <div className="relative h-20 bg-slate-50 flex items-center justify-center">
+                      {m.image ? (
+                        <img src={m.image} alt={m.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg" style={{ background: colorForName(m.name) }}>
+                          {m.name[0]?.toUpperCase()}
+                        </div>
+                      )}
+                      {m.prescription && (
+                        <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-violet-500 text-white text-[9px] font-bold">Rx</span>
+                      )}
+                      {inCart && (
+                        <span className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ background: 'linear-gradient(135deg, #2F6BFF 0%, #1e4fd6 100%)' }}>
+                          {inCart.qty}
+                        </span>
+                      )}
+                    </div>
+                    <div className="p-2">
+                      <p className="text-xs font-medium text-slate-800 line-clamp-2 leading-tight min-h-[2rem]">{m.name}</p>
+                      <div className="flex items-center justify-between mt-1.5">
+                        <span className="text-sm font-bold text-primary">{formatMoney(m.sellingPrice)}</span>
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${lowStock ? 'bg-red-100 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                          {m.totalStock ?? 0} left
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
             </div>
           </ScrollArea>
         </Card>
@@ -285,13 +438,13 @@ export function PosModule() {
       {cart.length > 0 && (
         <button
           onClick={() => setCartSheetOpen(true)}
-          className="lg:hidden fixed bottom-4 left-3 right-3 z-30 flex items-center justify-between px-4 py-3 rounded-2xl text-white shadow-xl active:scale-[0.98] transition-transform"
-          style={{ background: 'linear-gradient(135deg, #2F6BFF 0%, #1e4fd6 100%)' }}
+          className="lg:hidden fixed left-3 right-3 z-30 flex items-center justify-between px-4 py-3 rounded-2xl text-white shadow-xl active:scale-[0.98] transition-transform"
+          style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)', background: 'linear-gradient(135deg, #2F6BFF 0%, #1e4fd6 100%)' }}
         >
           <span className="flex items-center gap-2">
             <span className="relative">
               <ShoppingCart className="w-5 h-5" />
-              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-white text-primary text-[10px] font-bold flex items-center justify-center">{cart.length}</span>
+              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-white text-primary text-[10px] font-bold flex items-center justify-center">{cartCount}</span>
             </span>
             <span className="font-semibold text-sm">View Cart</span>
           </span>

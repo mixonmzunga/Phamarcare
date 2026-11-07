@@ -2,6 +2,7 @@
 
 import { Sidebar } from '@/components/sidebar'
 import { Topbar } from '@/components/topbar'
+import { BottomNav } from '@/components/bottom-nav'
 import { useNav } from '@/lib/store'
 import { DashboardModule } from '@/components/modules/dashboard'
 import { MedicinesModule } from '@/components/modules/medicines'
@@ -52,16 +53,17 @@ export function AppShell() {
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <Topbar />
-        <main className="flex-1 overflow-y-auto scroll-thin">
+        <main className="flex-1 overflow-y-auto scroll-thin no-scrollbar">
           <div className="min-h-full flex flex-col">
-            <div className="flex-1 p-3 sm:p-4 md:p-6">
+            <div className="flex-1 p-3 sm:p-4 md:p-6 pb-28 lg:pb-6">
               {Module()}
             </div>
-            <footer className="border-t border-slate-200 bg-white px-4 sm:px-6 py-3 text-center text-[11px] sm:text-xs text-slate-500 no-print">
+            <footer className="border-t border-slate-200 bg-white px-4 sm:px-6 py-3 text-center text-[11px] sm:text-xs text-slate-500 no-print lg:block hidden">
               &copy; {new Date().getFullYear()} PharmaCare Pharmacy Management ERP &middot; All rights reserved
             </footer>
           </div>
         </main>
+        <BottomNav />
       </div>
     </div>
   )
