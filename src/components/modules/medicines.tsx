@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PageHeader, LoadingState, EmptyState, ConfirmDialog, BadgeStatus } from '@/components/shared'
 import { Card } from '@/components/ui/card'
@@ -19,9 +19,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from 'sonner'
 import { useNav } from '@/lib/store'
 import { formatMoney } from '@/lib/format'
-import { Plus, Search, Edit, Trash2, Eye, Pill, Barcode as BarcodeIcon, Tag, Layers, MoreVertical, Printer, FileText, FileSpreadsheet, FileDown, X, Upload, ImageIcon } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Eye, Pill, Barcode as BarcodeIcon, Tag, Layers, MoreVertical, Printer, FileText, FileSpreadsheet, FileDown, X, Upload, ImageIcon, ScanLine, CheckCircle2 } from 'lucide-react'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { BarcodeScanner } from '@/components/barcode-scanner'
 
 interface Medicine { id: string; name: string; genericName?: string|null; barcode?: string|null; productCode?: string|null; categoryId?: string|null; typeId?: string|null; manufacturerId?: string|null; unitId?: string|null; image?: string|null; purchasePrice: number; sellingPrice: number; discountPercent: number; vatPercent: number; minStockLevel: number; boxQuantity: number; stripsPerBox: number; tabletsPerStrip: number; description?: string|null; prescription: boolean; isActive: boolean; category?: any; type?: any; manufacturer?: any; unit?: any; totalStock?: number }
 
@@ -176,6 +177,8 @@ export function MedicinesModule() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('medicines')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [scannerOpen, setScannerOpen] = useState(false)
+  const [scannedData, setScannedData] = useState<any>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['medicines', search, categoryId, typeId, showInactive],
@@ -240,6 +243,13 @@ export function MedicinesModule() {
         subtitle={`${medicines.length} medicine(s) in catalog`}
         actions={
           <>
+            <Button
+              onClick={() => setScannerOpen(true)}
+              style={{ background: 'linear-gradient(135deg, #2F6BFF 0%, #1e4fd6 100%)' }}
+              className="text-white"
+            >
+              <ScanLine className="w-4 h-4 mr-2" /> <span className="hidden sm:inline">Scan Barcode</span><span className="sm:hidden">Scan</span>
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="bg-white"><FileDown className="w-4 h-4 mr-2" /> Export <span className="text-xs text-slate-400 ml-1 hidden sm:inline">({selectedIds.size || medicines.length})</span></Button>
@@ -433,19 +443,71 @@ export function MedicinesModule() {
         <TabsContent value="manufacturers" className="mt-4"><ManufacturerList /></TabsContent>
       </Tabs>
 
-      {dialogOpen && <MedicineDialog open={dialogOpen} onOpenChange={setDialogOpen} editing={editing} cats={cats?.items} types={types?.items} manuf={manuf?.items} units={units?.items} />}
+      {dialogOpen && <MedicineDialog open={dialogOpen} onOpenChange={setDialogOpen} editing={editing} scannedData={scannedData} cats={cats?.items} types={types?.items} manuf={manuf?.items} units={units?.items} />}
       {viewing && <ViewDialog medicine={viewing} onClose={() => setViewing(null)} onEdit={() => { setEditing(viewing); setViewing(null); setDialogOpen(true) }} />}
+      <BarcodeScanner
+        open={scannerOpen}
+        onOpenChange={setScannerOpen}
+        onScanComplete={(barcode, data) => {
+          setScannedData(data)
+          setEditing(null)
+          setDialogOpen(true)
+        }}
+      />
       <ConfirmDialog open={!!deleteId} onOpenChange={(v) => !v && setDeleteId(null)} title="Delete Medicine" description="This medicine will be deleted. If it has transaction history it will be deactivated instead." confirmText="Delete" destructive onConfirm={() => { if (deleteId) deleteMut.mutate(deleteId); setDeleteId(null) }} />
     </div>
   )
 }
 
-function MedicineDialog({ open, onOpenChange, editing, cats, types, manuf, units }: any) {
+function MedicineDialog({ open, onOpenChange, editing, scannedData, cats, types, manuf, units }: any) {
   const qc = useQueryClient()
-  const [form, setForm] = useState<any>(editing || { name: '', genericName: '', categoryId: '', typeId: '', manufacturerId: '', unitId: '', barcode: '', productCode: '', image: '', purchasePrice: 0, sellingPrice: 0, discountPercent: 0, vatPercent: 0, minStockLevel: 10, boxQuantity: 1, stripsPerBox: 0, tabletsPerStrip: 0, description: '', prescription: false, isActive: true })
+  const [form, setForm] = useState<any>(() => {
+    if (editing) return editing
+    if (scannedData) return {
+      name: scannedData.name || '',
+      genericName: scannedData.genericName || '',
+      categoryId: '', typeId: '', manufacturerId: '', unitId: '',
+      barcode: scannedData.barcode || '',
+      productCode: scannedData.productCode || '',
+      image: scannedData.image || '',
+      purchasePrice: scannedData.purchasePrice || 0,
+      sellingPrice: scannedData.sellingPrice || 0,
+      discountPercent: 0, vatPercent: 0,
+      minStockLevel: scannedData.minStockLevel || 10,
+      boxQuantity: 1, stripsPerBox: 0, tabletsPerStrip: 0,
+      description: scannedData.description || '',
+      prescription: scannedData.prescription || false,
+      isActive: true,
+      _scannedCategory: scannedData.category || '',
+      _scannedType: scannedData.type || '',
+      _scannedManufacturer: scannedData.manufacturer || '',
+      _scannedUnit: scannedData.unit || '',
+    }
+    return { name: '', genericName: '', categoryId: '', typeId: '', manufacturerId: '', unitId: '', barcode: '', productCode: '', image: '', purchasePrice: 0, sellingPrice: 0, discountPercent: 0, vatPercent: 0, minStockLevel: 10, boxQuantity: 1, stripsPerBox: 0, tabletsPerStrip: 0, description: '', prescription: false, isActive: true }
+  })
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // Auto-match scanned category/type/manufacturer to dropdowns when data loads
+  useEffect(() => {
+    if (form._scannedCategory && cats?.length) {
+      const match = cats.find((c: any) => c.name.toLowerCase().includes(form._scannedCategory.toLowerCase()))
+      if (match) setForm((f: any) => ({ ...f, categoryId: match.id, _scannedCategory: undefined }))
+    }
+    if (form._scannedType && types?.length) {
+      const match = types.find((t: any) => t.name.toLowerCase().includes(form._scannedType.toLowerCase()))
+      if (match) setForm((f: any) => ({ ...f, typeId: match.id, _scannedType: undefined }))
+    }
+    if (form._scannedManufacturer && manuf?.length) {
+      const match = manuf.find((m: any) => m.name.toLowerCase().includes(form._scannedManufacturer.toLowerCase()))
+      if (match) setForm((f: any) => ({ ...f, manufacturerId: match.id, _scannedManufacturer: undefined }))
+    }
+    if (form._scannedUnit && units?.length) {
+      const match = units.find((u: any) => u.name.toLowerCase() === form._scannedUnit.toLowerCase())
+      if (match) setForm((f: any) => ({ ...f, unitId: match.id, _scannedUnit: undefined }))
+    }
+  }, [cats, types, manuf, units])
 
   async function handleUpload(file: File) {
     setUploading(true)
@@ -477,7 +539,13 @@ function MedicineDialog({ open, onOpenChange, editing, cats, types, manuf, units
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto scroll-thin">
-        <DialogHeader><DialogTitle>{editing ? 'Edit Medicine' : 'Add Medicine'}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{editing ? 'Edit Medicine' : scannedData ? 'Add Scanned Medicine' : 'Add Medicine'}</DialogTitle></DialogHeader>
+        {scannedData && (
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200 mb-2">
+            <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+            <p className="text-sm text-emerald-700">Medicine identified via {scannedData.image ? 'AI' : 'barcode scan'}. Review and save.</p>
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
           {/* Image upload */}
           <div className="md:col-span-2">

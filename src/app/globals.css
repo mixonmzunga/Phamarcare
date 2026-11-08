@@ -173,6 +173,12 @@ html, body {
 /* Responsive table wrapper */
 .scroll-thin { -webkit-overflow-scrolling: touch; }
 
+/* Barcode scanner animation */
+@keyframes scanline {
+  0%, 100% { top: 0; }
+  50% { top: 100%; }
+}
+
 @media print {
   body * { visibility: hidden; }
   .print-area, .print-area * { visibility: visible; }
